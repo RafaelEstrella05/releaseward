@@ -8,12 +8,37 @@ Early development, built iteratively via the `builder` workflow. See `PROJECT_BR
 
 ## Setup
 
-[Prerequisites, install steps, required environment variables / `.env` keys. Fill in once the walking skeleton runs.]
+Prerequisites: WSL2 with an Ubuntu distro, Docker Engine and Node.js installed inside it (not Docker Desktop — see `DECISIONS.md` for why).
+
+```bash
+cd app
+npm install
+docker build -t releaseward-demo:dev .
+```
 
 ## Usage
 
-[How to run it, with an example input/output. Fill in once there's something to run.]
+```bash
+docker run -d --name releaseward-demo -p 3000:3000 releaseward-demo:dev
+
+curl http://localhost:3000/livez
+# {"status":"alive"}
+
+curl http://localhost:3000/readyz
+# {"status":"not ready"}   <- for ~2.5s while it "warms up", then:
+# {"status":"ready"}
+
+curl -X POST http://localhost:3000/classify \
+  -H 'Content-Type: application/json' \
+  -d '{"text":"Badge access denied at rear entrance, after hours, repeated attempts"}'
+# {"category":"access_denied","confidence":0.25}
+```
+
+Or open `http://localhost:3000/` for a minimal form UI over the same endpoint.
+
+See `app/SECURITY_FLAWS.md` for the two intentional, documented vulnerabilities the pipeline's Trivy stage is meant to catch.
 
 ## Project layout
 
-[Brief pointers to key files/directories as they're created — keep this current as the project grows.]
+- `app/` — the Node + Express demo service (health endpoints, structured logging, the security-event classify feature, intentional Trivy fixtures)
+- `PROJECT_BRIEF.md`, `ARCHITECTURE.md`, `DECISIONS.md`, `TASKS.md` — living project state (see each file's own header for how it's used)

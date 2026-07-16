@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>releaseward demo service</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 640px; margin: 3rem auto; padding: 0 1rem; }
+    textarea { width: 100%; font-family: inherit; }
+    pre { background: #f4f4f4; padding: 1rem; border-radius: 6px; overflow-x: auto; }
+  </style>
+</head>
+<body>
+  <h1>releaseward — security event triage (demo)</h1>
+  <p>Minimal proof-of-concept feature riding the pipeline. Paste a short security-event description and classify it.</p>
+  <form id="classify-form">
+    <textarea id="text" rows="4" placeholder="e.g. Badge access denied at rear entrance after hours, repeated attempts..."></textarea><br /><br />
+    <button type="submit">Classify</button>
+  </form>
+  <pre id="output"></pre>
+
+  <script>
+    document.getElementById('classify-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const text = document.getElementById('text').value;
+      const res = await fetch('/classify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+      const body = await res.json();
+      document.getElementById('output').textContent = JSON.stringify(body, null, 2);
+    });
+  </script>
+</body>
+</html>

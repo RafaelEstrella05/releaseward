@@ -15,10 +15,10 @@
 
 <!-- Entries below this line. Mark done tasks with [x]. -->
 
-### [ ] Task: Demo service running locally in Docker
+### [x] Task: Demo service running locally in Docker
 - **Purpose**: Establishes the artifact everything else in the pipeline operates on — nothing can be built, tested, scanned, or shipped until this exists. Node + Express, `readyz`/`livez` health endpoints, structured JSON logging with request IDs, one small feature endpoint, and 1-2 intentional documented security flaws for Trivy to catch later.
-- **Status**: todo
-- **Notes**:
+- **Status**: done
+- **Notes**: Built and verified inside WSL Ubuntu (installed Docker Engine + Node.js natively there, no Docker Desktop — Docker Desktop wasn't installed on Windows, and native Linux install is a cleaner fit for the self-hosted-runner work coming up). Feature endpoint was first built as a generic record classifier (financial/personal/medical categories) then re-themed to a physical-security event triage domain (access-denied, after-hours, tailgating, device-offline, visitor) after review — good reminder to settle the demo's theme before writing the first version, not after. Verified: livez/readyz timing, classify endpoint across all 5 categories, 400 on missing input, structured JSON logs with request IDs and response times, `npm audit` already flags the intentional lodash CVE. Nothing committed to git yet — pending approval.
 
 ### [ ] Task: k3d cluster up, service deployed manually
 - **Purpose**: Learn raw Kubernetes manifests (Deployment, Service, Ingress) and probe semantics by hand, in WSL Ubuntu, before automating any of it via CI.

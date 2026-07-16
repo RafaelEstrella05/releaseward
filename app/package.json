@@ -1,0 +1,15 @@
+{
+  "name": "releaseward-demo-service",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Minimal Node + Express demo service for the releaseward CI/CD pipeline project.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "lodash": "4.17.15",
+    "pino-http": "^10.3.0"
+  }
+}

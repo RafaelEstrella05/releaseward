@@ -79,3 +79,13 @@
 **Why**: A previous commit/push cycle in this same project pushed content to the public repo that needed to be walked back (see the git history rewrite around this timestamp). Explicit per-action approval catches that kind of thing before it's public instead of after.
 
 **Status**: Active
+
+### [2026-07-16 09:30] Demo service feature theme: physical-security event triage
+
+**Decision**: The demo service one small feature is a security-event classify endpoint themed around physical-security/access-control operations (categories: access_denied, after_hours, tailgating, device_offline, visitor) rather than a generic record classifier.
+
+**Alternatives considered**: First built with generic financial/personal/medical record categories (drawing on general data-classification patterns). Replaced after review.
+
+**Why**: A physical-security-operations theme is a more relevant, coherent domain for a CI/CD pipeline portfolio project in this space than an arbitrary financial/medical categorization with no connection to the rest of the project. Kept entirely generic (no specific company or product named anywhere in the app or docs) per the standing rule on not exposing job-application context in a public repo.
+
+**Status**: Active

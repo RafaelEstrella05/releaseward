@@ -40,3 +40,7 @@ Output: a deployed, running service plus an AI-generated release note and a pass
 - [ ] README walks a stranger through running the whole thing locally in under 15 minutes.
 
 Longer-term (post-v1, tracked in `TASKS.md` as it's built out): centralized monitoring/log aggregation (Grafana/Prometheus dashboard), Claude-driven anomaly detection on deploy metrics, real free-tier cloud deploy.
+
+## Ongoing practice, once the pipeline exists
+
+This isn't a build-the-app-once-then-only-touch-the-pipeline project. Once GitHub Actions is live (from the CI task onward), small incremental changes to the demo service's feature set should keep flowing through the pipeline as real usage — new PRs, real Trivy/CI runs, real Claude release summaries — rather than treating the demo app as finished after the walking skeleton. The pipeline only proves itself by being used repeatedly, not by existing.
