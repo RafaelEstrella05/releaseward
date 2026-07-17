@@ -20,10 +20,14 @@
 - **Status**: done
 - **Notes**: Built and verified inside WSL Ubuntu (installed Docker Engine + Node.js natively there, no Docker Desktop — Docker Desktop wasn't installed on Windows, and native Linux install is a cleaner fit for the self-hosted-runner work coming up). Feature endpoint was first built as a generic record classifier (financial/personal/medical categories) then re-themed to a physical-security event triage domain (access-denied, after-hours, tailgating, device-offline, visitor) after review — good reminder to settle the demo's theme before writing the first version, not after. Verified: livez/readyz timing, classify endpoint across all 5 categories, 400 on missing input, structured JSON logs with request IDs and response times, `npm audit` already flags the intentional lodash CVE. Nothing committed to git yet — pending approval.
 
-### [ ] Task: k3d cluster up, service deployed manually
+### [x] Task: k3d cluster up, service deployed manually
 - **Purpose**: Learn raw Kubernetes manifests (Deployment, Service, Ingress) and probe semantics by hand, in WSL Ubuntu, before automating any of it via CI.
-- **Status**: todo
-- **Notes**:
+- **Status**: done
+- **Notes**: Installed kubectl + k3d in WSL Ubuntu; cluster uses k3d's bundled Traefik as the ingress controller (no separate ingress-nginx install). Manifests live in `k8s/` (Deployment with liveness/readiness probes wired to `/livez`/`/readyz`, ClusterIP Service, host-based Ingress at `releaseward.localhost`). Local image needs `k3d image import releaseward-demo:dev -c releaseward` since k3d's containerd doesn't see the host Docker daemon's images automatically. Caught and fixed a deprecated `kubernetes.io/ingress.class` annotation in favor of `spec.ingressClassName` while building this.
+
+  Hit two real environment bugs while building this, both in `DECISIONS.md`: (1) WSL2's default idle-timeout was tearing down the whole VM between commands, fixed via `vmIdleTimeout=-1` in `.wslconfig`; (2) even after that, the k3d server container kept crash-looping — first (wrongly) diagnosed as leftover corruption from the VM issue and "fixed" by recreating the cluster, but it recurred identically on a fresh, stable VM. Real cause: Docker's default `systemd` cgroup driver intermittently failed to create the container's cgroup scope via dbus in this nested WSL2 setup — fixed by switching Docker to `native.cgroupdriver=cgroupfs` in `/etc/docker/daemon.json` plus a matching `--kubelet-arg=cgroup-driver=cgroupfs` on the k3d server node. Verified stable for 8+ minutes (past the ~6 minute point where it crashed twice before) with `RestartCount=0`. Good lesson in not trusting the first plausible-looking diagnosis — re-tested against a counterexample instead of declaring victory early.
+
+  Verified end-to-end through the real ingress (health checks + classify), not just port-forwarding to the pod directly.
 
 ### [ ] Task: GitHub Actions CI — lint + unit test only
 - **Purpose**: Smallest possible real Actions workflow (triggers, jobs, secrets) before layering anything else on top.

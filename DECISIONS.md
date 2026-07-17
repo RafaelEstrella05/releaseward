@@ -89,3 +89,43 @@
 **Why**: A physical-security-operations theme is a more relevant, coherent domain for a CI/CD pipeline portfolio project in this space than an arbitrary financial/medical categorization with no connection to the rest of the project. Kept entirely generic (no specific company or product named anywhere in the app or docs) per the standing rule on not exposing job-application context in a public repo.
 
 **Status**: Active
+
+### [2026-07-16 15:30] Troubleshooting: k3d server container restart traced to WSL2 idle-timeout VM shutdown
+
+**Decision**: Root-caused the mid-Task-2 k3d-releaseward-server-0 restart to WSL2 tearing down the entire lightweight VM on an idle timeout (journalctl --list-boots showed repeated short-lived boots, current boot showing 0 min uptime right as the crash was investigated), not a docker/containerd/OOM issue -- ruled out OOM (OOMKilled=false, 30GB free) and app-level causes first. Fixed by creating a .wslconfig file (in the Windows user profile directory) with [wsl2] vmIdleTimeout=-1 to disable the idle shutdown, then wsl --shutdown plus restart to apply it. Verified the cluster and demo service recover cleanly through a deliberate shutdown/restart cycle (pods reschedule, ingress traffic works again within about a minute).
+
+**Alternatives considered**: Could have ignored it as a one-off flake and moved on, or worked around it by keeping a terminal/process always attached to the WSL distro to keep the VM alive instead of disabling the timeout.
+
+**Why**: A one-off dismissal would leave the same failure mode waiting to recur, and it matters a lot more once the self-hosted GitHub Actions runner (a later task) depends on this same WSL Ubuntu environment staying up continuously to pick up jobs. Disabling the idle timeout via .wslconfig is the durable fix at the platform level rather than a fragile workaround such as a keep-alive process.
+
+**Status**: Active
+
+### [2026-07-16 15:41] Troubleshooting: k3d server container crash-looping after VM stabilized, traced to cgroup/systemd corruption from earlier unclean shutdowns
+
+**Decision**: After fixing the WSL2 idle-timeout (VM itself became stable, same boot for 8+ minutes), the k3d-releaseward-server-0 container still failed to restart cleanly, this time with a concrete error: failed to create shim task / OCI runtime create failed / unable to apply cgroup configuration / error creating systemd unit ... got failed. dmesg also showed systemd-journald reporting a corrupted/uncleanly-shut-down journal file. Concluded this was leftover damage (corrupted cgroup/systemd/journal state) from the earlier repeated unclean VM shutdowns, not a new independent bug. Fixed by deleting the k3d cluster entirely (k3d cluster delete) and recreating it fresh on the now-stable VM, then re-importing the image and reapplying the k8s/ manifests -- verified working end-to-end through the ingress again afterward.
+
+**Alternatives considered**: Considered trying to repair the specific failing container/cgroup state in place (e.g. manually restarting just the affected container, clearing stale cgroup mounts) rather than deleting and recreating the whole cluster.
+
+**Why**: Debugging corrupted systemd/cgroup state left over from multiple prior unclean shutdowns is a poor use of time when the cluster itself is fully disposable and cheap to recreate (that is the entire point of a local dev cluster). Recreating fresh on now-stable ground (post the vmIdleTimeout fix) was the faster and more reliable path than forensically repairing state that was corrupted by a problem that no longer exists.
+
+**Status**: Active
+
+### [2026-07-16 16:08] Troubleshooting correction: k3d server crash-loop was a Docker cgroup-driver bug, not leftover VM corruption
+
+**Decision**: The earlier entry (Troubleshooting: k3d server container crash-looping after VM stabilized) diagnosed the recurring crash as leftover cgroup/systemd/journal corruption from prior unclean VM shutdowns, fixed by recreating the cluster. That was wrong -- the crash recurred identically on a fresh cluster on a VM stable for 24+ minutes (no reboot). The real cause: Docker daemon was running with Cgroup Driver: systemd (docker info), which makes Docker create a transient systemd scope unit (docker-<container-id>.scope) via dbus for every container it starts. That systemd unit-creation call was intermittently failing inside this nested WSL2 environment, killing the k3d-releaseward-server-0 container itself (not anything inside k3s/kubelet). Fixed at the correct layer: set exec-opts native.cgroupdriver=cgroupfs in /etc/docker/daemon.json, restarted docker.service, and also set --kubelet-arg=cgroup-driver=cgroupfs on the k3d server node (via --k3s-arg) so kubelet and Docker cgroup drivers match. Verified stable for 8+ minutes with RestartCount=0, past the ~6 minute mark where it crashed twice before.
+
+**Alternatives considered**: The previous (incorrect) fix attempt: deleting and recreating the k3d cluster without changing the cgroup driver, which only delayed the recurrence rather than fixing it. Considered kernel command-line workarounds (cgroup_no_v1=all etc.) found during research, but these were reported to cause OOM issues elsewhere and address a different symptom (cgroup v1/v2 detection) than the systemd-unit-creation failure actually seen here.
+
+**Why**: This is a good example of a plausible-sounding first diagnosis (clean exit code, recent unclean shutdowns, corrupted journal file all pointed toward VM-state corruption) turning out to be wrong once tested against a counterexample (fresh cluster, stable VM, same crash). The dbus/systemd unit-creation failure is a known fragile interaction for nested container runtimes on WSL2; forcing cgroupfs at the Docker daemon level removes the fragile path entirely rather than working around symptoms.
+
+**Status**: Active
+
+### [2026-07-16 17:02] Troubleshooting: kubectl get pods failed with couldn't get current server API group list
+
+**Decision**: kubectl get pods intermittently failed with couldn't get current server API group list / the server could not find the requested resource, even though the cluster itself was healthy (kubectl version succeeded, kubectl get apiservices showed everything AVAILABLE: True, and the same command worked fine moments later). Traced to a stale local kubectl discovery cache at ~/.kube/cache/discovery/ -- kubectl caches API discovery info per server host:port, and after recreating the k3d cluster multiple times today (each recreation gets a new random host port for the API server), four separate stale cache directories had accumulated, including one for the current port that was likely cached in an incomplete state right as the cluster was still finishing startup (Traefik CRDs not yet registered). Fixed by rm -rf ~/.kube/cache, forcing a fresh discovery fetch.
+
+**Alternatives considered**: Could have investigated further whether a specific APIService (metrics-server was the first suspect, given it caused a similar stale-discovery warning during the earlier cgroup crash investigation) was actually unhealthy -- ruled out this time since kubectl get apiservices showed everything available.
+
+**Why**: Clearing the cache is the standard, safe fix for this class of kubectl discovery error and also cleans up genuinely dead entries (three of the four cached directories pointed at ports from clusters that no longer exist). Worth remembering this will likely recur every time the cluster gets deleted and recreated, since each recreation gets a fresh random API port.
+
+**Status**: Active
