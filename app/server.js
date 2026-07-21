@@ -1,7 +1,7 @@
 const express = require('express');
 const pinoHttp = require('pino-http');
-const _ = require('lodash');
 const path = require('path');
+const { classify } = require('./classifier');
 
 const app = express();
 const httpLogger = pinoHttp();
@@ -14,6 +14,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Fake, DeepSeek/OpenAI-style API-key-shaped string so the pipeline's
 // secret-scanning stage has something real to catch. Not a real credential —
 // never replace this with an actual working key.
+// eslint-disable-next-line no-unused-vars -- Intentional fixture for Trivy secret detection.
 const DEMO_API_KEY = 'sk-fakeDoNotUse0000000000000000000000demo';
 // --- END INTENTIONAL FLAW ---
 
@@ -33,32 +34,6 @@ app.get('/readyz', (req, res) => {
   }
   res.status(200).json({ status: 'ready' });
 });
-
-const CATEGORY_KEYWORDS = {
-  access_denied: ['badge denied', 'access denied', 'invalid credential', 'card rejected'],
-  after_hours: ['after hours', 'after-hours', 'outside business hours', 'weekend entry'],
-  tailgating: ['tailgating', 'piggyback', 'multiple entries single badge', 'unauthorized follow'],
-  device_offline: ['camera offline', 'feed lost', 'device offline', 'sensor unresponsive'],
-  visitor: ['visitor check-in', 'guest badge', 'visitor arrived', 'front desk visitor'],
-};
-
-function classify(text) {
-  const lower = text.toLowerCase();
-  const scores = Object.fromEntries(
-    Object.entries(CATEGORY_KEYWORDS).map(([category, keywords]) => [
-      category,
-      keywords.filter((k) => lower.includes(k)).length,
-    ])
-  );
-  const [topCategory, topScore] = Object.entries(scores).sort((a, b) => b[1] - a[1])[0];
-  const maxPossible = Math.max(...Object.values(CATEGORY_KEYWORDS).map((k) => k.length));
-
-  // lodash merge used for real here (not just decorative) to build the result object
-  return _.merge(
-    { category: 'uncategorized', confidence: 0 },
-    topScore > 0 ? { category: topCategory, confidence: Number((topScore / maxPossible).toFixed(2)) } : {}
-  );
-}
 
 app.post('/classify', (req, res) => {
   const { text } = req.body || {};

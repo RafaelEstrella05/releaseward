@@ -5,11 +5,18 @@
   "description": "Minimal Node + Express demo service for the releaseward CI/CD pipeline project.",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "lint": "eslint .",
+    "test": "node --test classifier.test.js"
   },
   "dependencies": {
     "express": "^4.19.2",
     "lodash": "4.17.15",
     "pino-http": "^10.3.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.0.0",
+    "globals": "^17.0.0"
   }
 }

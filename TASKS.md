@@ -31,8 +31,8 @@
 
 ### [ ] Task: GitHub Actions CI — lint + unit test only
 - **Purpose**: Smallest possible real Actions workflow (triggers, jobs, secrets) before layering anything else on top.
-- **Status**: todo
-- **Notes**:
+- **Status**: in-progress
+- **Notes**: Workflow, ESLint configuration, and classifier unit tests are implemented locally. WSL validation passes (lint + 7 unit tests), and the refactored Node 20 image builds and starts successfully. Awaiting the first real GitHub Actions run before marking done.
 
 ### [ ] Task: Trivy security gate in the workflow
 - **Purpose**: Add the repo/filesystem scan and (once there's an image) the image scan, so the pipeline actually catches the demo service's intentional flaws — the JD-style security-scanning stage.
