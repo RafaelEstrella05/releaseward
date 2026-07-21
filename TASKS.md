@@ -29,10 +29,12 @@
 
   Verified end-to-end through the real ingress (health checks + classify), not just port-forwarding to the pod directly.
 
-### [ ] Task: GitHub Actions CI — lint + unit test only
+### [x] Task: GitHub Actions CI — lint + unit test only
 - **Purpose**: Smallest possible real Actions workflow (triggers, jobs, secrets) before layering anything else on top.
-- **Status**: in-progress
-- **Notes**: Workflow, ESLint configuration, and classifier unit tests are implemented locally. WSL validation passes (lint + 7 unit tests), and the refactored Node 20 image builds and starts successfully. Awaiting the first real GitHub Actions run before marking done.
+- **Status**: done
+- **Notes**: Added `.github/workflows/ci.yml`: pushes and pull requests run `npm ci`, ESLint, and 7 classifier unit tests on a fresh GitHub-hosted Ubuntu runner with Node 20. Extracted the pure classification logic into `app/classifier.js` so unit tests can import it without starting the Express server; updated the Dockerfile and verified the Node 20 image still builds and starts. The first real Actions run (`95ae30f`, run 29853945890) passed every step in 13 seconds.
+
+  Honest snags: ESLint correctly flagged the deliberately unused fake API key, so it received one documented line-level exception rather than weakening lint rules globally. Two initial tests failed because their input phrases did not match the test expectations; correcting the fixtures—not the working classifier—made all 7 pass. The first WSL push also stalled because WSL Git had no credential helper, fixed by configuring this repository to use the existing Windows Git Credential Manager.
 
 ### [ ] Task: Trivy security gate in the workflow
 - **Purpose**: Add the repo/filesystem scan and (once there's an image) the image scan, so the pipeline actually catches the demo service's intentional flaws — the JD-style security-scanning stage.
