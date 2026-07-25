@@ -8,8 +8,9 @@ RUN npm install --omit=dev
 COPY server.js classifier.js ./
 COPY public ./public
 
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
-USER appuser
+RUN addgroup -g 10001 -S appgroup \
+    && adduser -u 10001 -S appuser -G appgroup
+USER 10001:10001
 
 EXPOSE 3000
 ENV PORT=3000

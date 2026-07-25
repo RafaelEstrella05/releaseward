@@ -11,11 +11,11 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // --- INTENTIONAL SECURITY FLAW, documented in SECURITY_FLAWS.md ---
-// Fake, DeepSeek/OpenAI-style API-key-shaped string so the pipeline's
-// secret-scanning stage has something real to catch. Not a real credential —
+// Synthetic releaseward-only API-key-shaped string so the pipeline's
+// custom secret-scanning rule has something real to catch. Not a real credential —
 // never replace this with an actual working key.
 // eslint-disable-next-line no-unused-vars -- Intentional fixture for Trivy secret detection.
-const DEMO_API_KEY = 'sk-fakeDoNotUse0000000000000000000000demo';
+const DEMO_API_KEY = 'releaseward_demo_00000000000000000000000000000000';
 // --- END INTENTIONAL FLAW ---
 
 let ready = false;

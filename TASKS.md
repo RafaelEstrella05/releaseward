@@ -38,7 +38,7 @@
 
 ### [ ] Task: Trivy security gate in the workflow
 - **Purpose**: Add the repo/filesystem scan and (once there's an image) the image scan, so the pipeline actually catches the demo service's intentional flaws — the JD-style security-scanning stage.
-- **Status**: todo
+- **Status**: in-progress
 - **Notes**:
 
 ### [ ] Task: Docker build + push to ghcr.io in the workflow

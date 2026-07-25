@@ -35,3 +35,43 @@ jobs:
 
       - name: Run unit tests
         run: npm test
+
+  filesystem-security:
+    needs: lint-and-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Report all high and critical findings
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        env:
+          TRIVY_DISABLE_TELEMETRY: "true"
+          TRIVY_IGNOREFILE: /dev/null
+          TRIVY_SECRET_CONFIG: trivy-secret.yaml
+          TRIVY_SKIP_VERSION_CHECK: "true"
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,secret,misconfig
+          severity: HIGH,CRITICAL
+          format: table
+          exit-code: "0"
+
+      - name: Enforce security gate
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        env:
+          TRIVY_DISABLE_TELEMETRY: "true"
+          TRIVY_IGNOREFILE: .trivyignore
+          TRIVY_SECRET_CONFIG: trivy-secret.yaml
+          TRIVY_SKIP_VERSION_CHECK: "true"
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,secret,misconfig
+          severity: HIGH,CRITICAL
+          format: table
+          exit-code: "1"
+          skip-setup-trivy: "true"

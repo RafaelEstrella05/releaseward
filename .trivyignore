@@ -1,0 +1,9 @@
+# Intentional lodash 4.17.15 findings used to demonstrate the security gate.
+# New vulnerability IDs are not automatically accepted and will fail CI.
+CVE-2020-8203
+CVE-2021-23337
+CVE-2026-4800
+NSWG-ECO-516
+
+# Synthetic value matched only by the project-specific rule in trivy-secret.yaml.
+releaseward-demo-api-key

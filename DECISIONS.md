@@ -129,3 +129,13 @@
 **Why**: Clearing the cache is the standard, safe fix for this class of kubectl discovery error and also cleans up genuinely dead entries (three of the four cached directories pointed at ports from clusters that no longer exist). Worth remembering this will likely recur every time the cluster gets deleted and recreated, since each recreation gets a fresh random API port.
 
 **Status**: Active
+
+### [2026-07-25 16:12] Trivy two-pass security gate with an explicit fixture baseline
+
+**Decision**: The filesystem security job runs after lint/test in two passes: an unsuppressed evidence scan reports every HIGH/CRITICAL vulnerability, secret, and misconfiguration, then a blocking scan suppresses only the exact intentional fixture IDs in .trivyignore and fails on any other finding. A project-specific Trivy rule detects a guaranteed synthetic releaseward_demo_ secret fixture. The Trivy Action v0.36.0 reference is pinned to immutable commit ed142fd0673e97e23eac54620cfb913e5ce36c25. Image scanning remains part of the next Docker build/publish task, when the workflow has an image artifact to scan.
+
+**Alternatives considered**: Considered allowing the intentional fixtures to fail every workflow, which would block all downstream build/deploy work; making the scan warning-only, which would not be a real gate; broadly excluding fixture files or scanner categories, which could hide unrelated findings; and referencing the Trivy Action by a movable version tag instead of a full commit SHA.
+
+**Why**: The two-pass design keeps visible proof that Trivy detects the demo flaws while preserving a usable pipeline and failing closed on new HIGH/CRITICAL findings. Exact-ID suppression is narrower than skipping files or scanners. SHA pinning is especially important because Trivy GitHub Actions tags were force-moved during the March 2026 supply-chain compromise. Local negative testing also proved that removing the allowlist produces exit code 1 rather than a false green result.
+
+**Status**: Active
