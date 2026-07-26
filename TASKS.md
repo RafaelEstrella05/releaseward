@@ -36,10 +36,12 @@
 
   Honest snags: ESLint correctly flagged the deliberately unused fake API key, so it received one documented line-level exception rather than weakening lint rules globally. Two initial tests failed because their input phrases did not match the test expectations; correcting the fixtures—not the working classifier—made all 7 pass. The first WSL push also stalled because WSL Git had no credential helper, fixed by configuring this repository to use the existing Windows Git Credential Manager.
 
-### [ ] Task: Trivy security gate in the workflow
+### [x] Task: Trivy security gate in the workflow
 - **Purpose**: Add the repo/filesystem scan and (once there's an image) the image scan, so the pipeline actually catches the demo service's intentional flaws — the JD-style security-scanning stage.
-- **Status**: in-progress
-- **Notes**:
+- **Status**: done
+- **Notes**: Added a two-pass `filesystem-security` job after lint/test using Trivy Action v0.36.0 pinned to its full signed commit SHA. The evidence pass reports all `HIGH`/`CRITICAL` findings; the blocking pass suppresses only the exact intentional IDs in `.trivyignore` and fails on anything new. The real hosted run (`be435ec`, run 30175385058) passed both jobs and showed the expected four lodash findings plus one synthetic-secret finding. A local negative test without the allowlist returned exit code 1, proving the gate actually blocks.
+
+  Honest snags: the original fake `sk-...` value was not detected by current Trivy, so it was replaced with a guaranteed synthetic `releaseward_demo_...` fixture and a project-specific rule rather than imitating a real provider credential. The first scan also exposed three unintentional `HIGH` Kubernetes hardening gaps; these were fixed with a numeric non-root UID, dropped capabilities, disabled privilege escalation, a read-only root filesystem, and the runtime-default seccomp profile. The March 2026 Trivy Actions supply-chain compromise changed the implementation from a version-tag reference to an immutable SHA pin. Image scanning remains for the next Docker build/publish task, when the workflow creates the image artifact.
 
 ### [ ] Task: Docker build + push to ghcr.io in the workflow
 - **Purpose**: Completes the "build and publish artifact" half of the pipeline, tagged by commit SHA.
