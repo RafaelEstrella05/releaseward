@@ -124,6 +124,8 @@ High-authority actions should prefer reversible operations such as pausing a can
 
 ReleaseWard already defines a practical deterministic walking skeleton:
 
+![Current ReleaseWard hybrid pipeline](docs/releaseward-hybrid-pipeline.svg)
+
 ```text
 Commit / pull request
     → lint and unit tests
@@ -136,7 +138,9 @@ Commit / pull request
     → AI-generated release summary
 ```
 
-The project currently separates the application from the pipeline and intentionally keeps the application small. That is the right boundary: **the delivery system is the product being explored.**
+The implemented portion now runs lint/test, repository scanning, Docker build, and final-image scanning on disposable GitHub-hosted runners. Pull requests stop after verification; only a successful `master` push publishes the immutable commit-SHA image to GHCR and records its digest. The self-hosted WSL runner remains a planned deployment-only boundary and will not execute pull-request code.
+
+The project separates the application from the pipeline and intentionally keeps the application small. That is the right boundary: **the delivery system is the product being explored.**
 
 This design vision should not be interpreted as claiming that every component below is already implemented. Current reality remains documented in:
 
@@ -869,15 +873,15 @@ AI may summarize this evidence, but deterministic verification decides whether t
 **Goal:** Prove that the pipeline can build, verify, publish, deploy, and check a release without AI.
 
 - [x] Add Trivy repository scan
-- [ ] Add Docker build
-- [ ] Add Trivy image scan
-- [ ] Publish immutable image by commit SHA
+- [x] Add Docker build
+- [x] Add Trivy image scan
+- [x] Publish immutable image by commit SHA
 - [ ] Configure self-hosted deployment runner
 - [ ] Deploy to k3d
 - [ ] Verify rollout status
 - [ ] Run readiness, liveness, and ingress smoke tests
 - [ ] Record the deployed artifact digest
-- [ ] Separate untrusted CI from privileged deployment execution
+- [x] Separate untrusted CI from privileged deployment execution
 
 **Exit condition:** AI can be removed and the full deterministic release path still works.
 

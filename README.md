@@ -4,7 +4,20 @@ A self-hosted, AI-assisted CI/CD release pipeline — built hands-on to learn Gi
 
 ## Status
 
-Early development, built iteratively via the `builder` workflow. See `PROJECT_BRIEF.md` for the full brief, `ARCHITECTURE.md` for the design, and `TASKS.md` for current progress.
+Walking skeleton in progress. The GitHub-hosted path now runs lint/tests, two-pass filesystem security scanning, a hardened Docker build, and two-pass image scanning. Successful `master` pushes publish an immutable commit-SHA image to GHCR; protected deployment from WSL to k3d is the next increment. See `PROJECT_BRIEF.md` for the brief, `ARCHITECTURE.md` for the current design, and `TASKS.md` for verified progress.
+
+![ReleaseWard hybrid CI/CD pipeline and trust boundaries](docs/releaseward-hybrid-pipeline.svg)
+
+## Pipeline behavior
+
+| Event | Execution environment | Result |
+|---|---|---|
+| Pull request | Disposable GitHub-hosted Ubuntu runner | Lint, tests, filesystem scan, image build, and image scan. No publish and no access to local k3d. |
+| Feature-branch push | Disposable GitHub-hosted Ubuntu runner | Same build-and-verify path; no publish. |
+| Push to `master` | Disposable GitHub-hosted Ubuntu runner | Runs every gate, then publishes `ghcr.io/<owner>/<repo>:<commit-sha>` and records the registry digest. |
+| Trusted deployment *(next task)* | Deployment-only self-hosted runner in WSL Ubuntu | Pulls the verified image, deploys to k3d, and runs rollout/health smoke tests. Pull-request code will not run here. |
+
+Changes use short-lived `feature/*` or `fix/*` branches and a pull request into protected `master`. The runner boundary and rejected alternatives are recorded in `DECISIONS.md`.
 
 ## Setup
 
@@ -18,7 +31,7 @@ See `DECISIONS.md` for the full troubleshooting story on both.
 
 ```bash
 cd app
-npm install
+npm ci
 docker build -t releaseward-demo:dev .
 ```
 
@@ -50,6 +63,8 @@ See `CHEATSHEET.md` for the full set of WSL/Docker/k3d/kubectl commands to poke 
 
 - `app/` — the Node + Express demo service (health endpoints, structured logging, the security-event classify feature, intentional Trivy fixtures)
 - `k8s/` — Kubernetes manifests (Deployment, Service, Ingress) for deploying the demo service to k3d
+- `.github/workflows/ci.yml` — hosted CI, security gates, image build, and master-only GHCR publishing
+- `docs/releaseward-hybrid-pipeline.svg` — current pipeline and runner trust-boundary diagram
 - `CHEATSHEET.md` — WSL/Docker/k3d/kubectl commands for poking around by hand
 - `KNOWN_ISSUES.md` — ongoing environment risks that aren't fully resolved yet (start here if something breaks that isn't in `DECISIONS.md`)
 - `PROJECT_BRIEF.md`, `ARCHITECTURE.md`, `DECISIONS.md`, `TASKS.md` — living project state (see each file's own header for how it's used)

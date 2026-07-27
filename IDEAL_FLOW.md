@@ -7,6 +7,8 @@
 
 ![Ideal standard delivery pipeline](docs/ideal-pipeline-flow.svg)
 
+ReleaseWard's current one-computer implementation is a deliberately smaller instance of this standard: disposable hosted runners verify pull requests, protected `master` publishes an immutable GHCR image, and a deployment-only WSL runner is the next planned promotion boundary. See the [current hybrid pipeline diagram](docs/releaseward-hybrid-pipeline.svg) and `ARCHITECTURE.md`; planned controls in this document must not be mistaken for already implemented features.
+
 ## The contract
 
 The standard defines **required outcomes and evidence**, not one giant workflow that

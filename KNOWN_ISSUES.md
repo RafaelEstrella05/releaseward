@@ -22,3 +22,22 @@ A living list of things to remember and watch out for — distinct from `DECISIO
 **Why this matters more later**: this residual fragility is fine for casual local dev/testing, but it directly matters once the self-hosted GitHub Actions runner (a later task) depends on this same WSL2 environment staying up continuously to pick up CI jobs. If crashes recur frequently enough to disrupt that, this needs real follow-up then — options to consider at that point: investigating the "device or resource busy" error more specifically, trying `kind` instead of `k3d` (also nested, but a different implementation that might not share this exact fragility), or moving the self-hosted runner + cluster to a real Linux VM instead of WSL2 to remove the nesting entirely.
 
 **Revisit when**: the self-hosted runner task (Task 6) is reached, or if crash frequency increases noticeably before then.
+
+---
+
+## Native npm clean installs can fail in the OneDrive-backed checkout
+
+**Status**: Open / mitigated environment constraint.
+
+**Symptom**: Native Windows `npm ci` may fail with `EPERM` while trying to remove an existing package directory under `app/node_modules`. The observed failure involved `acorn-jsx`; the parent OneDrive tree had inherited deny-delete ACL behavior and package directories appeared as reparse-point/placeholders.
+
+**Impact**: This can leave the ignored local `node_modules` directory partially removed. It does not indicate a broken lockfile or application: the same checkout passed `npm ci`, lint, and all seven tests in an isolated non-OneDrive directory, and the Docker build passed in WSL.
+
+**Current mitigation**:
+
+- Treat the disposable GitHub-hosted Ubuntu runner and WSL/Docker build as authoritative.
+- Prefer `npm ci` in a non-OneDrive working copy when a truly clean native install is needed.
+- Do not weaken CI to `npm install` or suppress a failed test because of this Windows filesystem behavior.
+- If the local dependency tree is interrupted, restore it from a clean install and rerun `npm run lint` plus `npm test`.
+
+**Revisit when**: Native Windows dependency work becomes frequent enough to justify moving the active checkout outside OneDrive. The repository itself can remain backed up remotely through Git; it does not need OneDrive synchronization as a second source-control mechanism.

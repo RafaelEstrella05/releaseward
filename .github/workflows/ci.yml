@@ -75,3 +75,108 @@ jobs:
           format: table
           exit-code: "1"
           skip-setup-trivy: "true"
+
+  image-build:
+    needs: filesystem-security
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    permissions:
+      contents: read
+      packages: write
+
+    env:
+      REGISTRY: ghcr.io
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Define immutable image reference
+        id: image
+        shell: bash
+        run: |
+          image_ref="${REGISTRY}/${GITHUB_REPOSITORY,,}:${GITHUB_SHA}"
+          echo "ref=${image_ref}" >> "${GITHUB_OUTPUT}"
+
+      - name: Build image
+        shell: bash
+        run: |
+          docker build \
+            --pull \
+            --label "org.opencontainers.image.revision=${GITHUB_SHA}" \
+            --label "org.opencontainers.image.source=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}" \
+            --tag "${{ steps.image.outputs.ref }}" \
+            ./app
+
+      - name: Report all high and critical image findings
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        env:
+          TRIVY_DISABLE_TELEMETRY: "true"
+          TRIVY_IGNOREFILE: /dev/null
+          TRIVY_SECRET_CONFIG: trivy-secret.yaml
+          TRIVY_SKIP_VERSION_CHECK: "true"
+        with:
+          scan-type: image
+          image-ref: ${{ steps.image.outputs.ref }}
+          scanners: vuln,secret
+          severity: HIGH,CRITICAL
+          format: table
+          exit-code: "0"
+
+      - name: Enforce image security gate
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        env:
+          TRIVY_DISABLE_TELEMETRY: "true"
+          TRIVY_IGNOREFILE: .trivyignore
+          TRIVY_SECRET_CONFIG: trivy-secret.yaml
+          TRIVY_SKIP_VERSION_CHECK: "true"
+        with:
+          scan-type: image
+          image-ref: ${{ steps.image.outputs.ref }}
+          scanners: vuln,secret
+          severity: HIGH,CRITICAL
+          format: table
+          exit-code: "1"
+          skip-setup-trivy: "true"
+
+      - name: Log in to GHCR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1 # v3.6.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish immutable image
+        id: publish
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        shell: bash
+        run: |
+          docker push "${{ steps.image.outputs.ref }}"
+          image_digest="$(docker image inspect \
+            --format='{{index .RepoDigests 0}}' \
+            "${{ steps.image.outputs.ref }}")"
+
+          if [[ -z "${image_digest}" ]]; then
+            echo "GHCR did not return an image digest." >&2
+            exit 1
+          fi
+
+          echo "digest=${image_digest}" >> "${GITHUB_OUTPUT}"
+          {
+            echo "### Published image"
+            echo
+            echo "\`${image_digest}\`"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Record build-only result
+        if: github.event_name != 'push' || github.ref != 'refs/heads/master'
+        shell: bash
+        run: |
+          {
+            echo "### Verified image"
+            echo
+            echo "Built and scanned \`${{ steps.image.outputs.ref }}\`."
+            echo "Publishing is restricted to pushes on \`master\`."
+          } >> "${GITHUB_STEP_SUMMARY}"
