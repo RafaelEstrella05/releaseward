@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# Blocks commits that stage a forbidden term (specific employer name, hiring
+# manager, job-posting ID, etc). See CLAUDE.md's "Never commit content that
+# reveals a specific target company..." rule for what this enforces.
+#
+# The actual forbidden terms live in an untracked, gitignored local file
+# (.git-private/forbidden-terms.txt) so this script itself never needs to
+# contain the sensitive term. If that file is missing, this check is skipped
+# with a warning rather than blocking (e.g. on a fresh clone that hasn't set
+# up the local terms list yet).
+
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+terms_file="${repo_root}/.git-private/forbidden-terms.txt"
+
+if [[ ! -f "${terms_file}" ]]; then
+  echo "warning: ${terms_file} not found — skipping forbidden-term check." >&2
+  echo "warning: see CHEATSHEET.md for how to set it up." >&2
+  exit 0
+fi
+
+staged_diff="$(git diff --cached --unified=0 --diff-filter=ACMR -- .)"
+
+hit=0
+while IFS= read -r term; do
+  term="${term%%#*}"
+  term="$(echo -n "${term}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+  [[ -z "${term}" ]] && continue
+
+  if printf '%s' "${staged_diff}" | grep -iqF -- "${term}"; then
+    echo "BLOCKED: staged changes appear to contain a forbidden term." >&2
+    echo "This repo must never reveal a specific employer/interviewer (see CLAUDE.md)." >&2
+    hit=1
+  fi
+done < "${terms_file}"
+
+if [[ "${hit}" -ne 0 ]]; then
+  echo "" >&2
+  echo "Review the staged diff, remove the term, and re-run the commit." >&2
+  echo "(Bypass only if you are certain this is a false positive: git commit --no-verify)" >&2
+  exit 1
+fi
+
+exit 0
