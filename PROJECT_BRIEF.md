@@ -35,7 +35,7 @@ Output: a deployed, running service plus an AI-generated release note and a pass
 
 - [x] A containerized service exists in this repo with a Dockerfile, `readyz`/`livez` health endpoints, structured logging, and 1-2 intentional, documented security flaws for Trivy to catch.
 - [x] A GitHub Actions workflow runs on push/PR: lint/test → Trivy repository scan → build image → Trivy image scan; successful `master` pushes publish the commit-SHA image to GHCR.
-- [ ] The image deploys to a local k3d cluster (running in WSL Ubuntu) via a self-hosted GitHub Actions runner, and health checks pass automatically post-deploy.
+- [x] The image deploys to a local k3d cluster (running in WSL Ubuntu) via a self-hosted GitHub Actions runner, and health checks pass automatically post-deploy.
 - [ ] One AI-driven pipeline stage is live: Claude reads a completed pipeline run and produces a plain-English release summary (posted as a PR comment at minimum).
 - [ ] A real Jira project tracks this build's tasks, and one Confluence page documents the architecture — both linkable from the README.
 - [ ] README walks a stranger through running the whole thing locally in under 15 minutes.

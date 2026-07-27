@@ -4,7 +4,7 @@ A self-hosted, AI-assisted CI/CD release pipeline — built hands-on to learn Gi
 
 ## Status
 
-Walking skeleton in progress. The hosted path runs lint/tests, two-pass filesystem security scanning, a hardened Docker build, and two-pass image scanning. A successful `master` push publishes an immutable commit-SHA image to GHCR, passes its registry digest to a deployment-only WSL runner, and deploys that exact digest to the `releaseward-dev` namespace in k3d. The deployment code and restricted local identity are validated, and the runner is registered with GitHub; one real Actions-triggered deployment after merge remains to close the task. See `PROJECT_BRIEF.md` for the brief, `ARCHITECTURE.md` for the current design, and `TASKS.md` for verified progress.
+Walking skeleton in progress. The hosted path runs lint/tests, two-pass filesystem security scanning, a hardened Docker build, and two-pass image scanning. A successful `master` push publishes an immutable commit-SHA image to GHCR, passes its registry digest to a deployment-only WSL runner, and deploys that exact digest to the `releaseward-dev` namespace in k3d. This full chain has been verified end to end through a real Actions-triggered run on `master` (all four jobs — lint-and-test, filesystem-security, image-build, deploy-development — passing), not just a manual local exercise. Remaining v1 work: the AI release-summary stage, Jira/Confluence tracking, and a final README pass. See `PROJECT_BRIEF.md` for the brief, `ARCHITECTURE.md` for the current design, and `TASKS.md` for verified progress.
 
 ![ReleaseWard hybrid CI/CD pipeline and trust boundaries](docs/releaseward-hybrid-pipeline.svg)
 

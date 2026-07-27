@@ -209,3 +209,13 @@
 **Why**: Repository workflow restrictions reduce which jobs should reach the machine, while the separate OS and Kubernetes identities reduce what a dispatched job could do. Trivy flagged runner write access to Services and Ingresses as HIGH because those resources can redirect traffic, so that unnecessary authority was removed instead of allowlisted. The credential lifetime covers the interview window and can be rotated with the bootstrap script. This is defense in depth, not a claim that a persistent runner on a public repository is risk-free.
 
 **Status**: Active
+
+### [2026-07-27 15:58] Self-hosted deploy task closed after a real Actions-triggered run
+
+**Decision**: Merge `feature/k3d-dev-deployment` into `master` (PR #2, `1678662`) and mark the self-hosted-runner deployment task done, on the strength of a real `git push`-triggered Actions run rather than only the earlier manual/local exercise of the restricted deployment identity.
+
+**Alternatives considered**: Marking the task done on local verification alone; waiting for an additional run before closing it.
+
+**Why**: The task's own purpose was "does the pipeline actually ship it" — that requires proof the WSL runner picks up a job dispatched by GitHub Actions itself, not just that the kubeconfig and manifests work when invoked by hand. The observed run (`lint-and-test` 18s, `filesystem-security` 17s, `image-build` 43s, `deploy-development` 14s, total 1m45s, all green) is that proof.
+
+**Status**: Active
