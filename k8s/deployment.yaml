@@ -2,8 +2,10 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: releaseward-demo
+  namespace: releaseward-dev
   labels:
     app: releaseward-demo
+    releaseward.dev/environment: development
 spec:
   replicas: 1
   selector:
@@ -13,7 +15,9 @@ spec:
     metadata:
       labels:
         app: releaseward-demo
+        releaseward.dev/environment: development
     spec:
+      automountServiceAccountToken: false
       securityContext:
         runAsNonRoot: true
         runAsUser: 10001

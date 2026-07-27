@@ -54,8 +54,17 @@
 
 ### [ ] Task: Self-hosted runner + automated deploy to k3d + health-check smoke test
 - **Purpose**: Closes the loop on the core architectural insight — hosted runners can't reach local k8s, so a protected, deployment-only self-hosted runner (WSL Ubuntu) is required. It must consume the verified GHCR artifact from a trusted `master` run and must never execute pull-request code. This is the "does the pipeline actually ship it" moment.
+- **Status**: in progress
+- **Notes**: Added a `deploy-development` job that can run only after the hosted image job succeeds on a `master` push. It targets `[self-hosted, linux, x64, releaseward-deploy]`, validates the expected GHCR digest, applies a locally rendered digest-pinned Deployment, records the source revision/digest as annotations, waits for rollout, and checks `/livez` plus `/readyz` through the administrator-created ingress. Pull-request and feature-branch runs cannot schedule this job.
+
+  Created `releaseward-dev` with restricted Pod Security labels and a namespace-only `releaseward-deployer` Role. The dedicated WSL account `releasewardrunner` is not in the Docker group and has a seven-day kubeconfig that can manage only Deployments in that namespace. Service and Ingress changes are one-time administrator operations because Trivy correctly identified runner authority over traffic-routing resources as HIGH risk. GHCR is public, so k3d pulls the digest directly; the runner does not need the Docker socket. The exact published digest `sha256:36c7cf...ffd6` was deployed through the restricted identity, rollout succeeded, and both ingress health checks returned the expected JSON.
+
+  The checksum-verified runner v2.336.0 is now registered as `releaseward-wsl-deploy` with the `releaseward-deploy` label and confirmed online at `Listening for Jobs`. Remaining: merge this feature branch and capture one real Actions-triggered deployment. The foreground runner process intentionally keeps the WSL distribution alive; this corrects the earlier assumption that `vmIdleTimeout=-1` alone kept systemd services running between separate `wsl.exe` invocations.
+
+### [ ] Task: AI-writable candidate branch + ephemeral test image lane
+- **Purpose**: Let a bounded coding agent iterate autonomously without confusing an AI-produced candidate with a trusted release artifact. The agent may push only to `ai-test/**`; hosted CI publishes an immutable candidate image for automatic testing in k3d, while human review and trusted promotion remain mandatory before staging or production eligibility.
 - **Status**: todo
-- **Notes**: Before enabling deployment, configure a `master` branch ruleset that requires pull requests and the hosted quality/security/image checks. Give the WSL runner an explicit deployment label and make its job conditional on the trusted `master` push path; do not use it for `pull_request` jobs.
+- **Notes**: Candidate images use a distinct `ai-test-<commit-sha>` tag or package namespace, short retention, no deployment credentials, and GitHub-hosted runners only. The AI identity cannot modify protected workflow/policy paths, push to or merge `master`, approve its own PR, or access the WSL deployment runner. Automatic deployment targets a dedicated `releaseward-test` namespace. A candidate digest must not advance directly to staging/production merely because its tests passed; later work must define the reviewed provenance/promotion gate.
 
 ### [ ] Task: Claude Code Action release-summary stage
 - **Purpose**: The AI-driven pipeline differentiator — Claude reads the completed run (logs, diff, commits) and posts a plain-English release summary as a PR/commit comment.

@@ -24,7 +24,29 @@ git commit -m "Short imperative summary"
 git push -u origin feature/short-description
 ```
 
-Open a pull request into `master`. The feature push and pull request build, test, and scan on disposable GitHub-hosted runners but do not publish or touch k3d. After review and merge, the resulting `master` push reruns the gates and publishes the commit-SHA image to GHCR.
+Open a pull request into `master`. The feature push and pull request build, test, and scan on disposable GitHub-hosted runners but do not publish or touch k3d. After review and merge, the resulting `master` push reruns the gates, publishes the commit-SHA image to GHCR, and sends its immutable digest to the deployment-only WSL runner.
+
+## Deployment-only WSL runner
+
+One-time cluster and short-lived credential setup:
+
+```bash
+kubectl apply -f k8s/namespace.yaml
+kubectl apply -f k8s/runner-rbac.yaml
+kubectl apply -f k8s/service.yaml -f k8s/ingress.yaml
+sudo bash scripts/bootstrap-runner-kubeconfig.sh \
+  releasewardrunner "$USER" 168h
+```
+
+The dedicated account and checksum-verified runner package are already installed on this workstation. Register it using the one-hour token shown under GitHub **Settings -> Actions -> Runners -> New self-hosted runner**. Include the custom label `releaseward-deploy`; read the token into a shell variable as shown in the README instead of placing it in shell history.
+
+Start it from your normal WSL account:
+
+```bash
+bash scripts/start-local-runner.sh
+```
+
+Keep that terminal open. This keeps the WSL distribution and Docker/k3d alive while the runner waits for trusted deployment jobs. `Ctrl+C` takes it offline. The runner account has no Docker, Service, or Ingress authority and its Deployment-only kubeconfig expires after seven days; rerun the bootstrap command to rotate it.
 
 ## Reproduce the hosted image checks locally
 
@@ -85,11 +107,11 @@ Try it: `docker ps` should show `k3d-releaseward-server-0` and `k3d-releaseward-
 k3d cluster list                       # k3d clusters (should show "releaseward", 1/1 servers)
 kubectl get nodes                      # cluster nodes
 kubectl get pods -A                    # every pod, every namespace — the big picture
-kubectl get deploy,svc,ingress         # our app's Deployment, Service, and Ingress in one shot
-kubectl describe pod -l app=releaseward-demo   # full detail + Events on our pod (probes, restarts, etc.)
-kubectl logs -l app=releaseward-demo           # our app's logs, straight from the pod
-kubectl logs -l app=releaseward-demo -f        # stream them live
-kubectl exec -it deploy/releaseward-demo -- sh # shell into the APP's own pod (Kubernetes-level)
+kubectl get deploy,svc,ingress -n releaseward-dev
+kubectl describe pod -n releaseward-dev -l app=releaseward-demo
+kubectl logs -n releaseward-dev -l app=releaseward-demo
+kubectl logs -n releaseward-dev -l app=releaseward-demo -f
+kubectl exec -n releaseward-dev -it deploy/releaseward-demo -- sh
 ```
 
 ### If you actually want to look inside the node itself (rare, different purpose)
@@ -109,8 +131,14 @@ k3d cluster delete releaseward
 k3d cluster create releaseward --port '8080:80@loadbalancer' \
   --k3s-arg '--kubelet-arg=cgroup-driver=cgroupfs@server:*' --wait
 k3d image import releaseward-demo:dev -c releaseward
-kubectl apply -f k8s/
-kubectl rollout status deployment/releaseward-demo --timeout=60s
+kubectl apply -f k8s/namespace.yaml
+kubectl apply -f k8s/runner-rbac.yaml
+kubectl apply -f k8s/service.yaml -f k8s/ingress.yaml
+kubectl set image -f k8s/deployment.yaml \
+  releaseward-demo=releaseward-demo:dev --local -o yaml |
+  kubectl apply -f -
+kubectl rollout status -n releaseward-dev \
+  deployment/releaseward-demo --timeout=60s
 ```
 
 If `kubectl` then errors with `couldn't get current server API group list` / `the server could not find the requested resource` even though the cluster looks healthy, clear its stale discovery cache (very likely after any cluster recreation, since each one gets a new random API port):
