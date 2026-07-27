@@ -17,15 +17,14 @@ git push / pull request
   -> two-pass Trivy final-image gate
   -> pull request / feature push: stop after verification
   -> master push: publish immutable image to ghcr.io and record its digest
-
-planned next:
-  -> protected self-hosted runner (WSL Ubuntu) pulls the verified image
-  -> deploys it to k3d without executing pull-request code
+  -> protected self-hosted runner (WSL Ubuntu) receives that digest
+  -> applies trusted manifests to the releaseward-dev namespace
+  -> k3d pulls the public image directly by digest
   -> polls rollout, readyz/livez, and ingress smoke checks
   -> Claude Code Action later summarizes trusted pipeline evidence
 ```
 
-This is the thinnest slice that touches every major component. The hosted build-and-publish path is implemented; deployment and AI summarization remain planned tasks in `TASKS.md`. The split is also a security boundary: public pull-request code runs only on fresh hosted infrastructure with no route to the laptop's cluster.
+This is the thinnest slice that touches every major component. The hosted build/publish path and deployment workflow are implemented, the restricted deployment identity has been exercised locally end to end, and the deployment runner is registered with GitHub. One Actions-triggered deployment after merge remains; AI summarization is planned later in `TASKS.md`. The split is also a security boundary: public pull-request code runs only on fresh hosted infrastructure with no route to the laptop's cluster.
 
 ## Components
 
@@ -36,8 +35,8 @@ This is the thinnest slice that touches every major component. The hosted build-
 | GitHub-hosted runner | Runs lint/test, filesystem scanning, Docker build, and image scanning in a fresh Ubuntu VM | Handles all pull-request code; cannot reach the local k3d network |
 | Trivy | Security gate: scans repo/filesystem (deps, secrets, IaC/K8s manifests) and the built container image (vulnerabilities) | Single tool covering dependency scanning, secret detection, and vulnerability assessment |
 | ghcr.io | Container registry — stores successful `master` images tagged by commit SHA and addressable by returned digest | Pull requests build and scan but do not authenticate or publish |
-| Self-hosted GitHub Actions runner *(planned next)* | Runs inside WSL Ubuntu so the deploy step can reach the local k3d cluster | Deployment-only trusted zone: restricted refs/labels, no pull-request code, no general CI |
-| k3d | Local self-hosted Kubernetes (running inside WSL Ubuntu) — orchestrates the demo service's container(s) | Lightweight, fast cluster spin-up, well suited to iterative local dev work |
+| Self-hosted GitHub Actions runner | Runs inside WSL Ubuntu so the deploy step can reach local k3d | Dedicated Unix account, explicit `releaseward-deploy` label, trusted `master` push only, no Docker group, and a seven-day Deployment-only kubeconfig |
+| k3d | Local development Kubernetes inside WSL Ubuntu | Runs the app in `releaseward-dev`; its container runtime pulls the public GHCR artifact directly by digest |
 | Claude Code Action | Reads the completed pipeline run (logs, diff, commits) and posts a plain-English release summary on the PR/commit | Authenticated via OAuth token off the existing $20/mo Claude Pro subscription — no incremental API billing. Self-healing (auto-fix-and-commit on failure) is a possible later stretch task, not in v1 scope |
 | Jira | Tracks this build's own tasks as real tickets | Free tier |
 | Confluence | Hosts one architecture/documentation page for the project | Free tier |
@@ -48,7 +47,7 @@ This is the thinnest slice that touches every major component. The hosted build-
 |---|---|---|
 | GitHub-hosted CI | Check out PR code; install locked dependencies; lint/test; scan source; build and scan a local image | Reach WSL/k3d; use deployment credentials; publish a PR image |
 | `master` publish path | Authenticate to GHCR after every deterministic gate passes; publish the SHA tag; record the digest | Publish from pull requests or feature branches; use a mutable release tag |
-| WSL deployment runner *(planned)* | Trigger from a trusted protected-branch workflow; pull the verified registry artifact; deploy and smoke-test k3d | Run arbitrary PR code; perform general-purpose builds; expose cluster-admin access to AI analysis |
+| WSL deployment runner | Trigger only after the hosted image job succeeds on a protected `master` push; update the digest-pinned Deployment and smoke-test it | Run PR code; build images; use Docker; alter Services/Ingresses; read secrets/pods/other namespaces; hold cluster-admin credentials |
 
 The self-hosted runner is valuable because it can reach a private local cluster, not because it is a cheaper replacement for hosted CI. Ephemeral Hyper-V runners remain a possible future lab exercise, but are not required for the one-computer v1.
 
@@ -62,7 +61,6 @@ image -> [Trivy: two-pass image scan] -> pass/fail
 pass + PR/feature event -> [verified only; no publish]
 pass + master push -> [ghcr.io push, tag=commit SHA] -> registry image + digest
 
-planned:
 registry digest -> [self-hosted runner (WSL Ubuntu): deploy to k3d] -> running pod
 running pod -> [rollout + readyz/livez + ingress poll] -> healthy/unhealthy
 running pod -> [structured logs, request IDs] -> traceable per-request output

@@ -138,7 +138,7 @@ Commit / pull request
     → AI-generated release summary
 ```
 
-The implemented portion now runs lint/test, repository scanning, Docker build, and final-image scanning on disposable GitHub-hosted runners. Pull requests stop after verification; only a successful `master` push publishes the immutable commit-SHA image to GHCR and records its digest. The self-hosted WSL runner remains a planned deployment-only boundary and will not execute pull-request code.
+The implemented portion runs lint/test, repository scanning, Docker build, and final-image scanning on disposable GitHub-hosted runners. Pull requests stop after verification; only a successful `master` push publishes the immutable commit-SHA image to GHCR and records its digest. A registered deployment-only WSL runner then consumes that digest, updates the Deployment in `releaseward-dev`, and verifies rollout plus ingress health. Its dedicated Linux account has no Docker access and no authority over traffic-routing resources. One Actions-triggered deployment after merge remains to validate the complete path.
 
 The project separates the application from the pipeline and intentionally keeps the application small. That is the right boundary: **the delivery system is the product being explored.**
 
@@ -845,6 +845,8 @@ For a safer design:
 - Give the deployment identity only the permissions required for the target environment.
 - Never expose cluster-admin access to a general AI analysis job.
 
+ReleaseWard applies these restrictions with a dedicated non-Docker Linux account, the custom `releaseward-deploy` label, a `master`-push job condition, the `releaseward-dev` namespace, a Deployment-only Kubernetes Role, and a seven-day service-account token. Service and Ingress changes remain administrator-only. Because the GHCR package is public, k3d—not the runner—pulls the verified image by digest.
+
 ### 12.4 Supply-chain protection
 
 Future production hardening should include:
@@ -876,11 +878,13 @@ AI may summarize this evidence, but deterministic verification decides whether t
 - [x] Add Docker build
 - [x] Add Trivy image scan
 - [x] Publish immutable image by commit SHA
-- [ ] Configure self-hosted deployment runner
-- [ ] Deploy to k3d
-- [ ] Verify rollout status
-- [ ] Run readiness, liveness, and ingress smoke tests
-- [ ] Record the deployed artifact digest
+- [x] Install and restrict the self-hosted deployment runner account
+- [x] Register the deployment runner with GitHub
+- [x] Deploy the published digest to k3d with the restricted identity
+- [x] Verify rollout status locally
+- [x] Run readiness, liveness, and ingress smoke tests locally
+- [x] Record the deployed artifact digest
+- [ ] Capture one Actions-triggered deployment after merge
 - [x] Separate untrusted CI from privileged deployment execution
 
 **Exit condition:** AI can be removed and the full deterministic release path still works.

@@ -81,6 +81,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
+    outputs:
+      image_ref: ${{ steps.image.outputs.ref }}
+      image_digest: ${{ steps.publish.outputs.digest }}
+
     permissions:
       contents: read
       packages: write
@@ -179,4 +183,141 @@ jobs:
             echo
             echo "Built and scanned \`${{ steps.image.outputs.ref }}\`."
             echo "Publishing is restricted to pushes on \`master\`."
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+  deploy-development:
+    needs: image-build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: [self-hosted, linux, x64, releaseward-deploy]
+    timeout-minutes: 10
+
+    concurrency:
+      group: releaseward-development
+      cancel-in-progress: false
+
+    environment:
+      name: development
+
+    permissions:
+      contents: read
+
+    env:
+      IMAGE_DIGEST: ${{ needs.image-build.outputs.image_digest }}
+      K3D_CLUSTER: releaseward
+      K8S_NAMESPACE: releaseward-dev
+
+    steps:
+      - name: Check out trusted deployment manifests
+        uses: actions/checkout@v6
+        with:
+          clean: true
+          persist-credentials: false
+
+      - name: Validate immutable deployment input
+        shell: bash
+        run: |
+          expected_prefix="ghcr.io/${GITHUB_REPOSITORY,,}@sha256:"
+
+          if [[ -z "${IMAGE_DIGEST}" || "${IMAGE_DIGEST}" != "${expected_prefix}"* ]]; then
+            echo "Refusing invalid image digest: ${IMAGE_DIGEST}" >&2
+            exit 1
+          fi
+
+          echo "Deploying ${IMAGE_DIGEST}"
+
+      - name: Verify development cluster
+        shell: bash
+        run: |
+          kubectl version --request-timeout=10s >/dev/null
+          kubectl get deployments.apps \
+            --namespace "${K8S_NAMESPACE}" \
+            >/dev/null
+
+          for permission in \
+            "create deployments.apps" \
+            "patch deployments.apps"; do
+            read -r verb resource <<< "${permission}"
+            kubectl auth can-i "${verb}" "${resource}" \
+              --namespace "${K8S_NAMESPACE}" |
+              grep --fixed-strings --line-regexp yes
+          done
+
+          for forbidden_permission in \
+            "patch services" \
+            "patch ingresses.networking.k8s.io" \
+            "get secrets"; do
+            read -r verb resource <<< "${forbidden_permission}"
+            if kubectl auth can-i "${verb}" "${resource}" \
+              --namespace "${K8S_NAMESPACE}" |
+              grep --fixed-strings --line-regexp yes; then
+              echo "Refusing overprivileged runner: ${verb} ${resource}" >&2
+              exit 1
+            fi
+          done
+
+      - name: Apply digest-pinned development Deployment
+        shell: bash
+        run: |
+          kubectl set image \
+            --filename k8s/deployment.yaml \
+            "releaseward-demo=${IMAGE_DIGEST}" \
+            --local \
+            --output yaml |
+            kubectl apply --filename -
+
+          kubectl annotate \
+            --namespace "${K8S_NAMESPACE}" \
+            deployment/releaseward-demo \
+            "kubernetes.io/change-cause=${GITHUB_SHA}" \
+            "releaseward.dev/image-digest=${IMAGE_DIGEST}" \
+            --overwrite
+
+      - name: Verify rollout and ingress health
+        shell: bash
+        run: |
+          kubectl rollout status \
+            --namespace "${K8S_NAMESPACE}" \
+            deployment/releaseward-demo \
+            --timeout=120s
+
+          smoke_test() {
+            local path="$1"
+            local expected="$2"
+            local response
+
+            for attempt in {1..15}; do
+              if response="$(curl \
+                --silent \
+                --show-error \
+                --fail \
+                --header 'Host: releaseward.localhost' \
+                "http://localhost:8080/${path}")"; then
+                if [[ "${response}" == "${expected}" ]]; then
+                  echo "${path}: ${response}"
+                  return 0
+                fi
+              fi
+
+              echo "Waiting for ${path} (attempt ${attempt}/15)..."
+              sleep 2
+            done
+
+            echo "${path} did not return ${expected}." >&2
+            return 1
+          }
+
+          smoke_test livez '{"status":"alive"}'
+          smoke_test readyz '{"status":"ready"}'
+
+      - name: Record development deployment
+        shell: bash
+        run: |
+          {
+            echo "### Development deployment"
+            echo
+            echo "- Cluster: \`${K3D_CLUSTER}\`"
+            echo "- Namespace: \`${K8S_NAMESPACE}\`"
+            echo "- Image: \`${IMAGE_DIGEST}\`"
+            echo "- Revision: \`${GITHUB_SHA}\`"
+            echo "- Health: \`/livez\` and \`/readyz\` passed through ingress"
           } >> "${GITHUB_STEP_SUMMARY}"

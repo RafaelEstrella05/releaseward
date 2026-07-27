@@ -179,3 +179,33 @@
 **Why**: A native `npm ci` attempt failed while removing `node_modules/acorn-jsx` because the OneDrive parent carries a deny-delete ACL and placeholder/reparse attributes. The same locked dependencies, lint, and seven tests passed from an isolated `C:\tmp` copy, proving the failure was environmental rather than a source defect. The local `node_modules` tree was restored and the real project path subsequently passed lint and all tests with normal host permissions. Keeping clean builds on disposable Linux runners also matches the production-like environment and avoids making an interview demo depend on OneDrive internals.
 
 **Status**: Active
+
+### [2026-07-27] Correction: WSL VM lifetime and distribution lifetime are separate
+
+**Decision**: Keep `vmIdleTimeout=-1`, but stop treating it as sufficient to keep Ubuntu's systemd services alive. Testing showed one stable WSL kernel boot while `docker.service` was explicitly stopped each time the last `wsl.exe` process exited. A temporary foreground process kept Docker and k3d stable; the permanent demo mechanism is the GitHub runner itself running in a foreground WSL terminal through `scripts/start-local-runner.sh`.
+
+**Alternatives considered**: A systemd runner service, Hyper-V VM provisioning, Windows Task Scheduler, and an arbitrary keepalive process.
+
+**Why**: A systemd service did not hold this distribution open, while a foreground Windows-to-WSL process did. The runner naturally supplies that process and avoids adding another daemon or VM platform four days before the interview. Task Scheduler remains an option if unattended startup later becomes a real requirement.
+
+**Status**: Active
+
+### [2026-07-27] Development deployment uses a digest and no Docker socket
+
+**Decision**: A successful protected `master` push publishes a commit-SHA image on a disposable hosted runner and passes the returned GHCR digest to a deployment-only job. The WSL job validates the repository/digest prefix, applies only trusted manifests to `releaseward-dev`, annotates the Deployment with source revision and digest, waits for rollout, and checks liveness/readiness through ingress. k3d's containerd pulls the public GHCR image directly; the runner does not run `docker pull`, import images, or receive Docker-group access.
+
+**Alternatives considered**: Giving the runner Docker access and importing the image into k3d, deploying a mutable tag, publishing from feature branches, and treating the registry tag as an environment.
+
+**Why**: The commit SHA and registry digest identify source and content; neither is a deployment environment. `master` establishes reviewed provenance, while the Kubernetes namespace establishes the current development target. Removing the Docker socket eliminates a root-equivalent host capability and still permits exact artifact promotion.
+
+**Status**: Active
+
+### [2026-07-27] Namespace-scoped deployment identity for the public repository runner
+
+**Decision**: Run the self-hosted agent as a dedicated `releasewardrunner` Unix account with no Docker membership and no access to the normal user's cluster-admin kubeconfig. Its seven-day service-account credential can create/update/watch only Deployments in `releaseward-dev`. Service and Ingress changes remain one-time cluster-admin operations. The workflow requires the `releaseward-deploy` label and is conditional on a `push` to `master`; pull-request jobs remain hosted.
+
+**Alternatives considered**: Reusing the normal WSL user and admin kubeconfig, granting cluster-admin, storing a permanent service-account secret, or running all CI on the self-hosted machine.
+
+**Why**: Repository workflow restrictions reduce which jobs should reach the machine, while the separate OS and Kubernetes identities reduce what a dispatched job could do. Trivy flagged runner write access to Services and Ingresses as HIGH because those resources can redirect traffic, so that unnecessary authority was removed instead of allowlisted. The credential lifetime covers the interview window and can be rotated with the bootstrap script. This is defense in depth, not a claim that a persistent runner on a public repository is risk-free.
+
+**Status**: Active
