@@ -65,8 +65,10 @@
 
 ### [ ] Task: AI-writable candidate branch + ephemeral test image lane
 - **Purpose**: Let a bounded coding agent iterate autonomously without confusing an AI-produced candidate with a trusted release artifact. The agent may push only to `ai-test/**`; hosted CI publishes an immutable candidate image for automatic testing in k3d, while human review and trusted promotion remain mandatory before staging or production eligibility.
-- **Status**: todo
+- **Status**: in-progress
 - **Notes**: Candidate images use a distinct `ai-test-<commit-sha>` tag or package namespace, short retention, no deployment credentials, and GitHub-hosted runners only. The AI identity cannot modify protected workflow/policy paths, push to or merge `master`, approve its own PR, or access the WSL deployment runner. Automatic deployment targets a dedicated `releaseward-test` namespace. A candidate digest must not advance directly to staging/production merely because its tests passed; later work must define the reviewed provenance/promotion gate.
+
+  The bot pushes from a dedicated Hyper-V VM (Ubuntu Desktop + VS Code), not WSL — WSL2 mounts the Windows host's drives and is reachable from Windows in the other direction too, so it isn't a clean boundary for code the AI agent writes and executes. The VM runs under a separate GitHub identity (`releaseward-ai-bot`, its own email, its own PAT scoped to `contents`/`pull-requests` on this repo only) with no shared clipboard/drives back to the host (Hyper-V Basic Session mode, Default Switch NAT networking). Enforcement of the `ai-test/**`-only push restriction and the other boundaries above still lives in GitHub branch rulesets/repo settings, not in the VM itself — the VM isolates blast radius on this machine; it isn't what stops the bot from pushing to `master`.
 
 ### [ ] Task: Claude Code Action release-summary stage
 - **Purpose**: The AI-driven pipeline differentiator — Claude reads the completed run (logs, diff, commits) and posts a plain-English release summary as a PR/commit comment.
@@ -82,3 +84,8 @@
 - **Purpose**: Final legibility pass — a stranger should be able to run the whole thing locally in under 15 minutes from the README alone.
 - **Status**: todo
 - **Notes**:
+
+### [ ] Task: Staging and production environments on isolated Hyper-V VMs
+- **Purpose**: Real dev -> staging -> production promotion story, and moves deployment infrastructure off WSL2's shared-kernel/mounted-drive model onto genuinely isolated hosts. Staging and production each get their own headless Ubuntu Server VM (no GUI/VS Code needed — access is SSH/kubectl only, unlike the AI-agent's Ubuntu Desktop VM where interactive coding happens). Existing WSL-based dev k3d/runner setup is left as-is; this adds environments, it does not replace the working one.
+- **Status**: todo
+- **Notes**: Depends on defining the reviewed provenance/promotion gate flagged in the AI-writable candidate branch task — a candidate that passes ephemeral testing should not skip straight to staging/production without that gate existing first.
