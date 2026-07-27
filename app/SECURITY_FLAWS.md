@@ -14,9 +14,13 @@ found" no-op.
    be replaced with a working key. If this app later gains a real LLM-backed feature, that
    key belongs in an environment variable or GitHub Actions secret, never in source.
 
-The workflow first reports these fixtures without suppression, then runs a blocking scan
-using `.trivyignore`. Only the documented fixture IDs are accepted; any other `HIGH` or
-`CRITICAL` vulnerability, secret, or misconfiguration fails the security job.
+The workflow applies the same two-pass policy to both the repository filesystem and the
+final runtime image: first report the fixtures without suppression, then run a blocking
+scan using `.trivyignore`. Only the documented fixture IDs are accepted; any other `HIGH`
+or `CRITICAL` vulnerability, secret, or applicable misconfiguration fails the pipeline.
+This distinction matters: the first image scan found unrelated OpenSSL and npm-tooling
+vulnerabilities, which were fixed in the Dockerfile rather than added to the fixture
+allowlist.
 
 Do not "fix" either of these without checking `TASKS.md`/`DECISIONS.md` first — they're
 fixtures for the security-gate task, not bugs.

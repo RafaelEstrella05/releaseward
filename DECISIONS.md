@@ -139,3 +139,43 @@
 **Why**: The two-pass design keeps visible proof that Trivy detects the demo flaws while preserving a usable pipeline and failing closed on new HIGH/CRITICAL findings. Exact-ID suppression is narrower than skipping files or scanners. SHA pinning is especially important because Trivy GitHub Actions tags were force-moved during the March 2026 supply-chain compromise. Local negative testing also proved that removing the allowlist produces exit code 1 rather than a false green result.
 
 **Status**: Active
+
+### [2026-07-26 20:35] Hybrid runner trust boundary for public pull requests
+
+**Decision**: All pull-request quality checks, filesystem scanning, Docker builds, and image scanning run on disposable GitHub-hosted Ubuntu runners. Pull requests and non-default-branch pushes are build-and-verify only: they cannot publish an image or access the laptop's k3d cluster. Publishing is restricted to a successful `push` event on `master`. The later self-hosted WSL runner will be deployment-only, limited to trusted refs and explicit labels; it will pull a previously verified image rather than execute pull-request code.
+
+**Alternatives considered**: Running the entire workflow on the persistent WSL self-hosted runner; exposing k3d to GitHub-hosted runners; creating an ephemeral Hyper-V Ubuntu VM for every job; and replacing the push-based deployment runner with a pull-based GitOps controller.
+
+**Why**: A public-repository pull request can change application code and, depending on trigger design, workflow behavior. Running that code on the laptop would expose a persistent machine with Docker/k3d access. GitHub-hosted runners provide a fresh CI environment and no network path to the local cluster. A disposable Hyper-V runner is technically possible, but VM image creation, registration-token handling, cleanup, networking, and recovery would add substantial platform work before the core pipeline is complete. The hybrid boundary preserves the reason for a self-hosted runner—local cluster reachability—without using it as a general CI executor.
+
+**Status**: Active
+
+### [2026-07-26 20:36] Image release policy: scan every build, publish only immutable master artifacts
+
+**Decision**: The `image-build` job runs only after lint/test and the filesystem security gate. It builds `ghcr.io/<owner>/<repository>:<commit-sha>`, runs the same two-pass Trivy evidence/enforcement pattern against the final image, and fails on any unaccepted HIGH/CRITICAL vulnerability or secret. Only a successful `master` push logs in to GHCR and publishes the SHA tag; the returned repository digest is recorded in the GitHub Actions job summary. Feature branches and pull requests stop after build and verification.
+
+**Alternatives considered**: Publishing images from every branch or pull request; using mutable tags such as `latest`; scanning only the repository lockfile; pushing before scanning; and allowing all image findings while the demo contains intentional fixtures.
+
+**Why**: A commit SHA creates a direct source-to-image identity, while the registry digest provides the content identity needed for later deployment-by-digest. Scanning the actual runtime image catches operating-system and globally installed tool vulnerabilities that a repository scan cannot see. Event-gated login keeps package-write capability off the execution path for pull requests, and exact fixture suppression preserves the intentional security demonstration without hiding unrelated findings.
+
+**Status**: Active
+
+### [2026-07-26 20:37] Trivy findings drove a smaller, patched runtime image
+
+**Decision**: Replace the single-stage `npm install` image with a two-stage Docker build. The dependency stage uses lockfile-enforced `npm ci --omit=dev`. The runtime stage upgrades Alpine packages, copies only production dependencies and runtime source, removes npm/npx and npm's bundled dependency tree, and continues to run as numeric non-root UID/GID `10001`.
+
+**Alternatives considered**: Adding the newly reported OpenSSL/npm CVEs to `.trivyignore`; leaving npm in the runtime image; changing the security gate to warning-only; or switching base images without understanding which components introduced the findings.
+
+**Why**: The first strict image scan correctly found unintentional HIGH vulnerabilities in the base image's OpenSSL packages and in npm's bundled tooling. They were not part of the documented demo fixture and therefore should not be allowlisted. Upgrading the runtime packages fixed the OpenSSL findings, while removing a package manager that the running service does not need eliminated its vulnerable transitive tooling and reduced attack surface. The rebuilt image passed the strict scan with only the exact intentional lodash fixture suppressed.
+
+**Status**: Active
+
+### [2026-07-26 20:38] OneDrive checkout is not the authoritative clean-install environment
+
+**Decision**: Treat GitHub-hosted Ubuntu and WSL/Docker as the authoritative clean-build environments. Native Windows commands remain convenient for editing and quick checks, but clean dependency installation and release validation must not depend on the OneDrive-backed working tree. When native `npm ci` is blocked by inherited OneDrive ACL/reparse-point behavior, use an isolated non-OneDrive validation directory or the container build, then restore the ignored local dependency folder without changing tracked files.
+
+**Alternatives considered**: Disabling the lockfile clean install in CI; weakening the test requirement; forcibly deleting OneDrive-managed directories; moving the repository immediately; or treating the Windows filesystem error as an application failure.
+
+**Why**: A native `npm ci` attempt failed while removing `node_modules/acorn-jsx` because the OneDrive parent carries a deny-delete ACL and placeholder/reparse attributes. The same locked dependencies, lint, and seven tests passed from an isolated `C:\tmp` copy, proving the failure was environmental rather than a source defect. The local `node_modules` tree was restored and the real project path subsequently passed lint and all tests with normal host permissions. Keeping clean builds on disposable Linux runners also matches the production-like environment and avoids making an interview demo depend on OneDrive internals.
+
+**Status**: Active

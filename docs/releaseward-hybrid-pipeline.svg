@@ -1,0 +1,208 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="980" viewBox="0 0 1600 980" role="img" aria-labelledby="title desc">
+  <title id="title">ReleaseWard hybrid CI/CD pipeline and trust boundaries</title>
+  <desc id="desc">A feature branch and pull request run quality, filesystem security, Docker build, and image security checks on a disposable GitHub-hosted runner. Pull requests stop after verification. A successful push to protected master publishes an immutable commit-SHA image to GitHub Container Registry. A planned protected self-hosted runner in WSL will pull the verified image, deploy it to k3d, and run health checks without executing pull-request code.</desc>
+
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#08111f"/>
+      <stop offset="1" stop-color="#111d33"/>
+    </linearGradient>
+    <linearGradient id="hostedZone" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#102b42"/>
+      <stop offset="1" stop-color="#0d2237"/>
+    </linearGradient>
+    <linearGradient id="localZone" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#261c45"/>
+      <stop offset="1" stop-color="#1a1835"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#020617" flood-opacity=".4"/>
+    </filter>
+    <marker id="arrowCyan" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M0,0 L12,6 L0,12 Z" fill="#38bdf8"/>
+    </marker>
+    <marker id="arrowGreen" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M0,0 L12,6 L0,12 Z" fill="#34d399"/>
+    </marker>
+    <marker id="arrowPurple" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M0,0 L12,6 L0,12 Z" fill="#a78bfa"/>
+    </marker>
+    <style>
+      .sans { font-family: Inter, "Segoe UI", Arial, sans-serif; }
+      .title { font-size: 40px; font-weight: 750; fill: #f8fafc; letter-spacing: -.5px; }
+      .subtitle { font-size: 18px; fill: #9fb3c8; }
+      .zone-title { font-size: 22px; font-weight: 700; fill: #f8fafc; }
+      .zone-subtitle { font-size: 14px; fill: #9fb3c8; }
+      .card-title { font-size: 18px; font-weight: 700; fill: #f8fafc; }
+      .card-copy { font-size: 14px; fill: #bac8d8; }
+      .small { font-size: 13px; fill: #9fb3c8; }
+      .pill { font-size: 12px; font-weight: 700; letter-spacing: .7px; }
+      .mono { font-family: "Cascadia Mono", Consolas, monospace; font-size: 13px; }
+      .line { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+    </style>
+  </defs>
+
+  <rect width="1600" height="980" fill="url(#background)"/>
+  <circle cx="1460" cy="80" r="260" fill="#0ea5e9" opacity=".055"/>
+  <circle cx="90" cy="920" r="300" fill="#8b5cf6" opacity=".05"/>
+
+  <text x="72" y="72" class="sans title">ReleaseWard • hybrid CI/CD trust boundaries</text>
+  <text x="72" y="108" class="sans subtitle">One laptop, disposable hosted CI, protected local deployment, immutable artifacts</text>
+
+  <!-- Legend -->
+  <g transform="translate(1120 60)" class="sans">
+    <rect x="0" y="0" width="126" height="34" rx="17" fill="#0f3a32" stroke="#34d399"/>
+    <circle cx="18" cy="17" r="5" fill="#34d399"/>
+    <text x="31" y="22" class="pill" fill="#9ef2d2">IMPLEMENTED</text>
+    <rect x="140" y="0" width="104" height="34" rx="17" fill="#2b2148" stroke="#a78bfa" stroke-dasharray="5 4"/>
+    <circle cx="158" cy="17" r="5" fill="#a78bfa"/>
+    <text x="171" y="22" class="pill" fill="#d8ccff">PLANNED</text>
+  </g>
+
+  <!-- Source zone -->
+  <g filter="url(#shadow)">
+    <rect x="72" y="158" width="280" height="666" rx="24" fill="#101b2d" stroke="#334155" stroke-width="2"/>
+  </g>
+  <g class="sans">
+    <text x="104" y="200" class="zone-title">Developer workspace</text>
+    <text x="104" y="225" class="zone-subtitle">Windows + VS Code + WSL Ubuntu</text>
+
+    <rect x="104" y="270" width="216" height="112" rx="16" fill="#172337" stroke="#64748b"/>
+    <rect x="122" y="287" width="88" height="24" rx="12" fill="#1e3a5f"/>
+    <text x="137" y="304" class="pill" fill="#7dd3fc">CHANGE</text>
+    <text x="122" y="338" class="card-title">Feature branch</text>
+    <text x="122" y="363" class="card-copy">feature/* or fix/*</text>
+
+    <path d="M212 382 V427" class="line" stroke="#38bdf8" marker-end="url(#arrowCyan)"/>
+
+    <rect x="104" y="438" width="216" height="122" rx="16" fill="#172337" stroke="#38bdf8"/>
+    <rect x="122" y="455" width="108" height="24" rx="12" fill="#123853"/>
+    <text x="137" y="472" class="pill" fill="#7dd3fc">REVIEW GATE</text>
+    <text x="122" y="506" class="card-title">Pull request</text>
+    <text x="122" y="531" class="card-copy">Target: protected master</text>
+
+    <path d="M212 560 V605" class="line" stroke="#34d399" marker-end="url(#arrowGreen)"/>
+
+    <rect x="104" y="616" width="216" height="136" rx="16" fill="#132b29" stroke="#34d399"/>
+    <rect x="122" y="633" width="88" height="24" rx="12" fill="#0f3a32"/>
+    <text x="137" y="650" class="pill" fill="#9ef2d2">TRUSTED</text>
+    <text x="122" y="684" class="card-title">master push</text>
+    <text x="122" y="709" class="card-copy">Only after review +</text>
+    <text x="122" y="731" class="card-copy">required checks pass</text>
+  </g>
+
+  <!-- Hosted CI zone -->
+  <g filter="url(#shadow)">
+    <rect x="400" y="158" width="720" height="666" rx="24" fill="url(#hostedZone)" stroke="#0ea5e9" stroke-width="2"/>
+  </g>
+  <g class="sans">
+    <text x="432" y="200" class="zone-title">GitHub-hosted runner</text>
+    <text x="432" y="225" class="zone-subtitle">Fresh Ubuntu VM per job • no route to local k3d • no production data</text>
+
+    <rect x="904" y="182" width="184" height="32" rx="16" fill="#123853" stroke="#38bdf8"/>
+    <text x="927" y="203" class="pill" fill="#7dd3fc">DISPOSABLE CI ZONE</text>
+
+    <rect x="432" y="270" width="196" height="126" rx="16" fill="#0d1f32" stroke="#38bdf8"/>
+    <text x="452" y="301" class="small" fill="#7dd3fc">01 • QUALITY</text>
+    <text x="452" y="331" class="card-title">Lint + unit tests</text>
+    <text x="452" y="356" class="card-copy">npm ci • ESLint</text>
+    <text x="452" y="378" class="card-copy">7 Node tests</text>
+
+    <path d="M628 333 H666" class="line" stroke="#38bdf8" marker-end="url(#arrowCyan)"/>
+
+    <rect x="678" y="270" width="196" height="126" rx="16" fill="#0d1f32" stroke="#38bdf8"/>
+    <text x="698" y="301" class="small" fill="#7dd3fc">02 • SOURCE GATE</text>
+    <text x="698" y="331" class="card-title">Filesystem scan</text>
+    <text x="698" y="356" class="card-copy">Evidence pass</text>
+    <text x="698" y="378" class="card-copy">Strict allowlisted pass</text>
+
+    <path d="M874 333 H912" class="line" stroke="#38bdf8" marker-end="url(#arrowCyan)"/>
+
+    <rect x="924" y="270" width="164" height="126" rx="16" fill="#0d1f32" stroke="#38bdf8"/>
+    <text x="944" y="301" class="small" fill="#7dd3fc">03 • BUILD</text>
+    <text x="944" y="331" class="card-title">Docker image</text>
+    <text x="944" y="356" class="card-copy">Multi-stage</text>
+    <text x="944" y="378" class="card-copy">Commit-SHA tag</text>
+
+    <path d="M1006 396 V440" class="line" stroke="#38bdf8" marker-end="url(#arrowCyan)"/>
+
+    <rect x="760" y="452" width="328" height="126" rx="16" fill="#0d1f32" stroke="#38bdf8"/>
+    <text x="780" y="483" class="small" fill="#7dd3fc">04 • ARTIFACT GATE</text>
+    <text x="780" y="513" class="card-title">Trivy image scan</text>
+    <text x="780" y="538" class="card-copy">HIGH / CRITICAL vulnerabilities + secrets</text>
+    <text x="780" y="560" class="card-copy">New finding → pipeline fails closed</text>
+
+    <path d="M760 515 H708" class="line" stroke="#38bdf8" marker-end="url(#arrowCyan)"/>
+
+    <polygon points="624,450 708,515 624,580 540,515" fill="#122c3e" stroke="#34d399" stroke-width="2"/>
+    <text x="584" y="510" class="card-title">All gates</text>
+    <text x="596" y="533" class="card-copy">passed?</text>
+
+    <path d="M540 515 H474 V628" class="line" stroke="#f87171" marker-end="url(#arrowCyan)"/>
+    <text x="482" y="500" class="pill" fill="#fca5a5">NO</text>
+    <rect x="432" y="640" width="216" height="112" rx="16" fill="#321b27" stroke="#f87171"/>
+    <text x="452" y="673" class="card-title">Stop and report</text>
+    <text x="452" y="698" class="card-copy">No publish • no deploy</text>
+    <text x="452" y="720" class="card-copy">Evidence remains in run</text>
+
+    <path d="M624 580 V628" class="line" stroke="#34d399" marker-end="url(#arrowGreen)"/>
+    <text x="640" y="610" class="pill" fill="#9ef2d2">YES</text>
+    <rect x="680" y="640" width="408" height="112" rx="16" fill="#132b29" stroke="#34d399"/>
+    <text x="700" y="673" class="card-title">Event-aware release decision</text>
+    <text x="700" y="699" class="card-copy">PR / feature push → verified build only</text>
+    <text x="700" y="723" class="card-copy">master push → authenticate and publish</text>
+  </g>
+
+  <!-- Connections into hosted zone -->
+  <path d="M320 499 H376 V333 H420" class="line" stroke="#38bdf8" marker-end="url(#arrowCyan)"/>
+  <path d="M320 684 H376 V333" class="line" stroke="#34d399"/>
+
+  <!-- Registry -->
+  <g filter="url(#shadow)">
+    <rect x="1168" y="158" width="360" height="306" rx="24" fill="#10231f" stroke="#34d399" stroke-width="2"/>
+  </g>
+  <g class="sans">
+    <text x="1200" y="200" class="zone-title">GitHub Container Registry</text>
+    <text x="1200" y="225" class="zone-subtitle">Publish authority exists only on master</text>
+
+    <rect x="1200" y="270" width="296" height="142" rx="16" fill="#132b29" stroke="#34d399"/>
+    <rect x="1220" y="288" width="108" height="24" rx="12" fill="#0f3a32"/>
+    <text x="1236" y="305" class="pill" fill="#9ef2d2">IMMUTABLE</text>
+    <text x="1220" y="344" class="card-title">ghcr.io/owner/repo</text>
+    <text x="1220" y="372" class="mono" fill="#a7f3d0">:&lt;git-commit-sha&gt;</text>
+    <text x="1220" y="397" class="card-copy">Registry returns content digest</text>
+  </g>
+  <path d="M1088 696 H1144 V342 H1188" class="line" stroke="#34d399" marker-end="url(#arrowGreen)"/>
+  <text x="1153" y="681" class="pill" fill="#9ef2d2" transform="rotate(-90 1153 681)">MASTER ONLY</text>
+
+  <!-- Planned local deployment zone -->
+  <g filter="url(#shadow)">
+    <rect x="1168" y="510" width="360" height="314" rx="24" fill="url(#localZone)" stroke="#a78bfa" stroke-width="2" stroke-dasharray="9 7"/>
+  </g>
+  <g class="sans">
+    <text x="1200" y="552" class="zone-title">Protected local deploy zone</text>
+    <text x="1200" y="577" class="zone-subtitle">Planned next • one computer, isolated authority</text>
+
+    <rect x="1200" y="613" width="296" height="78" rx="16" fill="#241d40" stroke="#a78bfa"/>
+    <text x="1220" y="644" class="card-title">WSL self-hosted runner</text>
+    <text x="1220" y="669" class="card-copy">Deployment workflow • trusted ref only</text>
+
+    <path d="M1348 691 V721" class="line" stroke="#a78bfa" stroke-dasharray="7 6" marker-end="url(#arrowPurple)"/>
+
+    <rect x="1200" y="733" width="296" height="62" rx="16" fill="#241d40" stroke="#a78bfa"/>
+    <text x="1220" y="759" class="card-title">k3d rollout + smoke tests</text>
+    <text x="1220" y="781" class="card-copy">readyz • livez • ingress</text>
+  </g>
+  <path d="M1480 412 V600 H1512 V652 H1496" class="line" stroke="#a78bfa" stroke-dasharray="8 7" marker-end="url(#arrowPurple)"/>
+  <text x="1268" y="602" class="pill" fill="#d8ccff">PULL VERIFIED IMAGE</text>
+
+  <!-- Boundary rule -->
+  <g class="sans">
+    <rect x="72" y="862" width="1456" height="72" rx="18" fill="#171d2b" stroke="#475569"/>
+    <circle cx="108" cy="898" r="14" fill="#3a1e2a" stroke="#f87171"/>
+    <path d="M101 891 L115 905 M115 891 L101 905" stroke="#fca5a5" stroke-width="3" stroke-linecap="round"/>
+    <text x="138" y="892" class="card-title">Hard boundary</text>
+    <text x="138" y="916" class="card-copy">Pull-request code never runs on the WSL deployment runner and never receives k3d access or registry publish credentials.</text>
+    <text x="1280" y="904" class="pill" fill="#9fb3c8">FAIL CLOSED</text>
+  </g>
+</svg>

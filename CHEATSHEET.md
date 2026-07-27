@@ -4,6 +4,48 @@ Quick reference for poking at this project by hand — WSL2, Docker, k3d/Kuberne
 
 See `docs/k8s-architecture-comparison.svg` for a diagram of how this local WSL2/k3d setup (one machine, Docker-in-Docker) differs from a real production Kubernetes cluster (separate control-plane and worker machines) — useful context for why the cgroup-driver bug below happened at all.
 
+See `docs/releaseward-hybrid-pipeline.svg` for the current GitHub-hosted CI, GHCR publishing, and protected WSL deployment boundaries.
+
+## Git feature-branch flow
+
+Start each change from an up-to-date default branch and keep `master` out of day-to-day edits:
+
+```bash
+git switch master
+git pull --ff-only
+git switch -c feature/short-description
+
+# work, then inspect exactly what will be committed
+git status
+git diff
+git add <files>
+git diff --cached
+git commit -m "Short imperative summary"
+git push -u origin feature/short-description
+```
+
+Open a pull request into `master`. The feature push and pull request build, test, and scan on disposable GitHub-hosted runners but do not publish or touch k3d. After review and merge, the resulting `master` push reruns the gates and publishes the commit-SHA image to GHCR.
+
+## Reproduce the hosted image checks locally
+
+From the repository root inside WSL:
+
+```bash
+cd app
+npm ci
+npm run lint
+npm test
+cd ..
+
+docker build --pull -t releaseward-demo:validation ./app
+docker run --rm -d --name releaseward-validation -p 3000:3000 releaseward-demo:validation
+curl http://localhost:3000/livez
+curl http://localhost:3000/readyz
+docker stop releaseward-validation
+```
+
+The workflow is authoritative for the complete two-pass Trivy scans. Never add an unexpected finding to `.trivyignore` merely to make the run green; first identify and remove or patch the component that introduced it.
+
 ## Get into WSL
 
 Don't prefix every command with `wsl -d Ubuntu-24.04 --` — just live inside it:
