@@ -24,7 +24,7 @@ git push / pull request
   -> Claude Code Action later summarizes trusted pipeline evidence
 ```
 
-This is the thinnest slice that touches every major component. The hosted build/publish path and deployment workflow are implemented, the restricted deployment identity has been exercised locally end to end, and the deployment runner is registered with GitHub. One Actions-triggered deployment after merge remains; AI summarization is planned later in `TASKS.md`. The split is also a security boundary: public pull-request code runs only on fresh hosted infrastructure with no route to the laptop's cluster.
+This is the thinnest slice that touches every major component. The hosted build/publish path and the self-hosted deployment path are both implemented and verified: a real `master` push ran lint/test, the two-pass Trivy gates, image build/publish, and the WSL deployment job end to end via GitHub Actions (not just a manual local exercise). AI summarization is planned later in `TASKS.md`. The split is also a security boundary: public pull-request code runs only on fresh hosted infrastructure with no route to the laptop's cluster.
 
 ## Components
 
