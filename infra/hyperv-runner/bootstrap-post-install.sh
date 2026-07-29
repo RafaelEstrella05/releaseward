@@ -33,11 +33,12 @@ sudo snap install kubectl --classic
 echo "== k3d ${k3d_version}, checksum-verified against the release's own SHA256SUMS =="
 tmp_dir="$(mktemp -d)"
 trap 'rm -rf -- "${tmp_dir}"' EXIT
+chmod 711 "${tmp_dir}"
 curl -fsSL -o "${tmp_dir}/k3d" \
   "https://github.com/k3d-io/k3d/releases/download/${k3d_version}/k3d-linux-amd64"
-curl -fsSL -o "${tmp_dir}/sha256sum.txt" \
-  "https://github.com/k3d-io/k3d/releases/download/${k3d_version}/sha256sum.txt"
-expected="$(grep 'k3d-linux-amd64$' "${tmp_dir}/sha256sum.txt" | awk '{print $1}')"
+curl -fsSL -o "${tmp_dir}/checksums.txt" \
+  "https://github.com/k3d-io/k3d/releases/download/${k3d_version}/checksums.txt"
+expected="$(grep 'k3d-linux-amd64$' "${tmp_dir}/checksums.txt" | awk '{print $1}')"
 actual="$(sha256sum "${tmp_dir}/k3d" | awk '{print $1}')"
 if [[ -z "${expected}" || "${expected}" != "${actual}" ]]; then
   echo "k3d checksum mismatch: expected ${expected:-<none>}, got ${actual}" >&2

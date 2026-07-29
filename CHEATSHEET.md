@@ -40,13 +40,113 @@ sudo bash scripts/bootstrap-runner-kubeconfig.sh \
 
 The dedicated account and checksum-verified runner package are already installed on this workstation. Register it using the one-hour token shown under GitHub **Settings -> Actions -> Runners -> New self-hosted runner**. Include the custom label `releaseward-deploy`; read the token into a shell variable as shown in the README instead of placing it in shell history.
 
-Start it from your normal WSL account:
+Start it from your normal WSL account by running the foreground runner script that used to live at `scripts/start-local-runner.sh`. Keeping that terminal open kept the WSL distribution and Docker/k3d alive while the runner waited for trusted deployment jobs; `Ctrl+C` took it offline. The runner account had no Docker, Service, or Ingress authority and its Deployment-only kubeconfig expired after seven days.
 
-```bash
-bash scripts/start-local-runner.sh
+**Decommissioned 2026-07-28, script deleted 2026-07-29**: this WSL runner has been taken offline and replaced by the disposable Hyper-V runner below, and `scripts/start-local-runner.sh` itself has been removed now that a real deploy has round-tripped through the Hyper-V runner (see `DECISIONS.md`, 2026-07-28 and 2026-07-29 20:22 entries). The commands above are left for historical reference only — they won't run as-is anymore.
+
+## Disposable Hyper-V deploy runner (now active — replaced the WSL runner above)
+
+**Status (2026-07-29 20:22): confirmed working via a real deploy.** `releaseward-hyperv-deploy`
+is the sole registered self-hosted runner, and a real `master`-push
+`deploy-development` job has round-tripped through it successfully — see the
+"Replace WSL deploy runner..." entry in `TASKS.md` (now done) and `DECISIONS.md`.
+
+Rationale: WSL2 shares the Windows host's kernel and mounts its drives in
+both directions, which is too much shared blast radius for a runner holding
+any cluster-deploy authority. This VM is a genuinely isolated, disposable
+Hyper-V guest that can be rebuilt from `infra/hyperv-runner/` instead of
+hand-patched — same trust boundary as before (deploy-only, no Docker
+group, restricted namespace RBAC), different host.
+
+### 1. Build the autoinstall seed ISO (PowerShell, on the Windows host)
+
+Fill in the two `REPLACE_ME_*` placeholders in
+`infra/hyperv-runner/autoinstall.yaml` first — your SSH public key, and an
+`openssl passwd -6` hash for console/sudo recovery (generate that hash from
+WSL: `openssl passwd -6`).
+
+```powershell
+mkdir C:\vms\releaseward-runner-seed
+copy infra\hyperv-runner\autoinstall.yaml C:\vms\releaseward-runner-seed\user-data
+copy infra\hyperv-runner\meta-data        C:\vms\releaseward-runner-seed\meta-data
+
+# oscdimg ships with the Windows ADK "Deployment Tools" component
+& "C:\Program Files (x86)\Windows Kits\10\Assessment and Deployment Kit\Deployment Tools\amd64\Oscdimg\oscdimg.exe" `
+  -n -d -lCIDATA C:\vms\releaseward-runner-seed C:\vms\releaseward-runner-seed.iso
 ```
 
-Keep that terminal open. This keeps the WSL distribution and Docker/k3d alive while the runner waits for trusted deployment jobs. `Ctrl+C` takes it offline. The runner account has no Docker, Service, or Ingress authority and its Deployment-only kubeconfig expires after seven days; rerun the bootstrap command to rotate it.
+Download the official Ubuntu Server 24.04 LTS ISO from `releases.ubuntu.com`
+to e.g. `C:\vms\ubuntu-24.04-live-server-amd64.iso`.
+
+### 2. Create the VM (PowerShell)
+
+```powershell
+New-VM -Name releaseward-runner -Generation 2 -MemoryStartupBytes 6GB `
+  -NewVHDPath C:\vms\releaseward-runner\disk.vhdx -NewVHDSizeBytes 60GB `
+  -SwitchName "Default Switch"
+Set-VMProcessor releaseward-runner -Count 2
+
+# Fixed, not dynamic — k3s/kubelet don't expect their memory ceiling to
+# change under them after boot
+Set-VMMemory releaseward-runner -DynamicMemoryEnabled $false
+
+# Ubuntu's shim is signed for the UEFI CA template, not the Windows-only default
+Set-VMFirmware releaseward-runner -SecureBootTemplate MicrosoftUEFICertificateAuthority
+
+$install = Add-VMDvdDrive releaseward-runner -Path C:\vms\ubuntu-24.04-live-server-amd64.iso -Passthru
+Add-VMDvdDrive releaseward-runner -Path C:\vms\releaseward-runner-seed.iso
+Set-VMFirmware releaseward-runner -FirstBootDevice $install
+
+Start-VM releaseward-runner
+vmconnect.exe localhost releaseward-runner
+```
+
+`Default Switch` gives NAT networking with no shared clipboard/drives back
+to the host — the same isolation model already used for the AI-test-lane
+bot VM (see `TASKS.md`).
+
+### 3. Install
+
+In the VM console, at the GRUB menu press `e`, add ` autoinstall` to the
+line starting `linux`, then boot (`Ctrl+X` or `F10`). Subiquity installs
+non-interactively (`interactive-sections: []`) and reboots on its own —
+no further console input needed. Once it reboots, detach both DVD drives
+(`Set-VMDvdDrive releaseward-runner -Path $null` for each, or leave them —
+they're harmless once the disk has an OS).
+
+### 4. Find its IP and SSH in
+
+```powershell
+(Get-VM releaseward-runner | Get-VMNetworkAdapter).IPAddresses
+```
+
+```bash
+ssh opsadmin@<vm-ip>
+```
+
+### 5. Post-boot bootstrap (inside the VM, as opsadmin)
+
+Needs a GitHub self-hosted runner registration token (repo **Settings ->
+Actions -> Runners -> New self-hosted runner**, one-hour lifetime — read it
+into a shell variable, don't leave it in shell history) and this repo's
+clone URL:
+
+```bash
+export RELEASEWARD_REPO_URL="https://github.com/<owner>/releaseward.git"
+bash infra/hyperv-runner/bootstrap-post-install.sh "$REG_TOKEN"
+```
+
+This installs kubectl + a checksum-verified k3d, creates the `releaseward`
+k3d cluster, applies `k8s/namespace.yaml` / `k8s/runner-rbac.yaml` /
+`k8s/service.yaml` / `k8s/ingress.yaml`, installs the GitHub Actions runner
+as a systemd service under `releasewardrunner` with the `releaseward-deploy`
+label (survives reboots — no foreground terminal to keep open, unlike the
+WSL runner), and finishes by running the existing
+`scripts/bootstrap-runner-kubeconfig.sh` to issue its scoped, Deployment-only
+kubeconfig. Rerun that last script every 7 days to rotate the token, same as
+the WSL setup.
+
+**Done 2026-07-29**: a real deployment round-tripped through this VM successfully, `TASKS.md` and `ARCHITECTURE.md` are updated, and the WSL runner is fully retired — `scripts/start-local-runner.sh` has been deleted.
 
 **Decommissioned 2026-07-28**: this WSL runner has been taken offline and replaced by the disposable Hyper-V runner below. Left here for historical reference only — don't start it back up alongside the Hyper-V runner (see `DECISIONS.md`, 2026-07-28 entries, for why running both at once is a real problem: they'd share the same `releaseward-deploy` label).
 
