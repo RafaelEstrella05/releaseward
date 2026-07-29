@@ -40,23 +40,16 @@ sudo bash scripts/bootstrap-runner-kubeconfig.sh \
 
 The dedicated account and checksum-verified runner package are already installed on this workstation. Register it using the one-hour token shown under GitHub **Settings -> Actions -> Runners -> New self-hosted runner**. Include the custom label `releaseward-deploy`; read the token into a shell variable as shown in the README instead of placing it in shell history.
 
-Start it from your normal WSL account:
+Start it from your normal WSL account by running the foreground runner script that used to live at `scripts/start-local-runner.sh`. Keeping that terminal open kept the WSL distribution and Docker/k3d alive while the runner waited for trusted deployment jobs; `Ctrl+C` took it offline. The runner account had no Docker, Service, or Ingress authority and its Deployment-only kubeconfig expired after seven days.
 
-```bash
-bash scripts/start-local-runner.sh
-```
-
-Keep that terminal open. This keeps the WSL distribution and Docker/k3d alive while the runner waits for trusted deployment jobs. `Ctrl+C` takes it offline. The runner account has no Docker, Service, or Ingress authority and its Deployment-only kubeconfig expires after seven days; rerun the bootstrap command to rotate it.
-
-**Decommissioned 2026-07-28**: this WSL runner has been taken offline and replaced by the disposable Hyper-V runner below. Left here for historical reference only — don't start it back up alongside the Hyper-V runner (see `DECISIONS.md`, 2026-07-28 entries, for why running both at once is a real problem: they'd share the same `releaseward-deploy` label).
+**Decommissioned 2026-07-28, script deleted 2026-07-29**: this WSL runner has been taken offline and replaced by the disposable Hyper-V runner below, and `scripts/start-local-runner.sh` itself has been removed now that a real deploy has round-tripped through the Hyper-V runner (see `DECISIONS.md`, 2026-07-28 and 2026-07-29 20:22 entries). The commands above are left for historical reference only — they won't run as-is anymore.
 
 ## Disposable Hyper-V deploy runner (now active — replaced the WSL runner above)
 
-**Status (2026-07-28 17:46): VM booted, runner registered and online, WSL runner decommissioned — not yet smoke-tested with a real deploy.** See the
-"Replace WSL deploy runner..." entry in `TASKS.md`. `releaseward-hyperv-deploy`
-is now the sole registered self-hosted runner; nothing has triggered a real
-`deploy-development` job through it yet, so treat the next `master` push as
-its first real test.
+**Status (2026-07-29 20:22): confirmed working via a real deploy.** `releaseward-hyperv-deploy`
+is the sole registered self-hosted runner, and a real `master`-push
+`deploy-development` job has round-tripped through it successfully — see the
+"Replace WSL deploy runner..." entry in `TASKS.md` (now done) and `DECISIONS.md`.
 
 Rationale: WSL2 shares the Windows host's kernel and mounts its drives in
 both directions, which is too much shared blast radius for a runner holding
@@ -153,10 +146,7 @@ WSL runner), and finishes by running the existing
 kubeconfig. Rerun that last script every 7 days to rotate the token, same as
 the WSL setup.
 
-Once a real deployment has round-tripped through this VM successfully,
-update `TASKS.md` and `ARCHITECTURE.md` and retire the WSL runner
-(`sudo "$HOME/actions-runner/svc.sh" stop` there, or just stop starting
-`scripts/start-local-runner.sh`) — don't retire it before that.
+**Done 2026-07-29**: a real deployment round-tripped through this VM successfully, `TASKS.md` and `ARCHITECTURE.md` are updated, and the WSL runner is fully retired — `scripts/start-local-runner.sh` has been deleted.
 
 ## Reproduce the hosted image checks locally
 

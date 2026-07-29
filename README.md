@@ -4,7 +4,7 @@ A self-hosted, AI-assisted CI/CD release pipeline — built hands-on to learn Gi
 
 ## Status
 
-Walking skeleton in progress. The hosted path runs lint/tests, two-pass filesystem security scanning, a hardened Docker build, and two-pass image scanning. A successful `master` push publishes an immutable commit-SHA image to GHCR, passes its registry digest to a deployment-only WSL runner, and deploys that exact digest to the `releaseward-dev` namespace in k3d. This full chain has been verified end to end through a real Actions-triggered run on `master` (all four jobs — lint-and-test, filesystem-security, image-build, deploy-development — passing), not just a manual local exercise. Remaining v1 work: the AI release-summary stage, Jira/Confluence tracking, and a final README pass. See `PROJECT_BRIEF.md` for the brief, `ARCHITECTURE.md` for the current design, and `TASKS.md` for verified progress.
+Walking skeleton in progress. The hosted path runs lint/tests, two-pass filesystem security scanning, a hardened Docker build, and two-pass image scanning. A successful `master` push publishes an immutable commit-SHA image to GHCR, passes its registry digest to a deployment-only self-hosted runner (a disposable Hyper-V Ubuntu Server VM, `infra/hyperv-runner/`), and deploys that exact digest to the `releaseward-dev` namespace in k3d. This full chain has been verified end to end through a real Actions-triggered run on `master` (all four jobs — lint-and-test, filesystem-security, image-build, deploy-development — passing), not just a manual local exercise. Remaining v1 work: the AI release-summary stage, Jira/Confluence tracking, and a final README pass. See `PROJECT_BRIEF.md` for the brief, `ARCHITECTURE.md` for the current design, and `TASKS.md` for verified progress.
 
 ![ReleaseWard hybrid CI/CD pipeline and trust boundaries](docs/releaseward-hybrid-pipeline.svg)
 
@@ -14,7 +14,7 @@ Walking skeleton in progress. The hosted path runs lint/tests, two-pass filesyst
 |---|---|---|
 | Pull request | Disposable GitHub-hosted Ubuntu runner | Lint, tests, filesystem scan, image build, and image scan. No publish and no access to local k3d. |
 | Feature-branch push | Disposable GitHub-hosted Ubuntu runner | Same build-and-verify path; no publish. |
-| Push to `master` | Hosted runner, then deployment-only WSL runner | Hosted CI runs every gate and publishes `ghcr.io/<owner>/<repo>:<commit-sha>`. The WSL job receives the returned digest, applies only trusted manifests to `releaseward-dev`, and runs rollout plus ingress health checks. |
+| Push to `master` | Hosted runner, then deployment-only Hyper-V runner | Hosted CI runs every gate and publishes `ghcr.io/<owner>/<repo>:<commit-sha>`. The Hyper-V runner job receives the returned digest, applies only trusted manifests to `releaseward-dev`, and runs rollout plus ingress health checks. |
 
 Changes use short-lived `feature/*` or `fix/*` branches and a pull request into protected `master`. The runner boundary and rejected alternatives are recorded in `DECISIONS.md`.
 
@@ -30,47 +30,9 @@ See `DECISIONS.md` for the full troubleshooting story on both.
 
 ### Deployment-runner bootstrap
 
-The runner is a separate WSL account named `releasewardrunner`. It is not in the `docker` group and its Kubernetes identity is limited to Deployments in `releaseward-dev`. Service and Ingress changes remain administrator-only bootstrap operations.
+The deployment-only runner lives on a genuinely isolated, disposable Hyper-V Ubuntu Server VM (not WSL2 — a WSL-hosted runner shared the Windows host's kernel and mounted its drives both directions, an unacceptable risk surface for a runner holding cluster-deploy authority; that setup has been decommissioned). The runner account is not in the `docker` group and its Kubernetes identity is limited to Deployments in `releaseward-dev`; Service and Ingress changes remain administrator-only bootstrap operations.
 
-On this workstation, the dedicated account and checksum-verified GitHub Actions runner v2.336.0 are already installed under `/home/releasewardrunner/actions-runner`. On a clean machine, create the account first and use the current Linux/x64 download plus checksum commands shown by GitHub's **New self-hosted runner** page.
-
-From the repository root in WSL, bootstrap the namespace and Role with your normal cluster-admin user:
-
-```bash
-kubectl apply -f k8s/namespace.yaml
-kubectl apply -f k8s/runner-rbac.yaml
-kubectl apply -f k8s/service.yaml -f k8s/ingress.yaml
-sudo bash scripts/bootstrap-runner-kubeconfig.sh \
-  releasewardrunner "$USER" 168h
-```
-
-The last command creates a seven-day credential. Rerun it to rotate the credential before it expires.
-
-In GitHub, open **Settings -> Actions -> Runners -> New self-hosted runner**, select Linux/x64, and use the displayed one-hour registration token from the dedicated account:
-
-```bash
-sudo --set-home --user releasewardrunner bash
-cd ~/actions-runner
-read -rsp 'One-hour registration token: ' RUNNER_TOKEN
-echo
-./config.sh \
-  --url https://github.com/rafaelestrella05/releaseward \
-  --token "$RUNNER_TOKEN" \
-  --name releaseward-wsl-deploy \
-  --labels releaseward-deploy \
-  --work _work \
-  --unattended
-unset RUNNER_TOKEN
-exit
-```
-
-Do not paste that token into a document, commit, issue, or chat. Start the runner from your normal WSL account and keep that terminal open:
-
-```bash
-bash scripts/start-local-runner.sh
-```
-
-The foreground process keeps the WSL distribution active. `Ctrl+C` takes the deployment runner offline. The workflow never schedules pull-request jobs on it and k3d pulls the public GHCR image directly by digest, so the runner account does not need Docker-socket access.
+The VM is built from a checked-in `infra/hyperv-runner/autoinstall.yaml` (rebuildable from scratch instead of hand-maintained) plus a post-boot `infra/hyperv-runner/bootstrap-post-install.sh` that installs kubectl, a checksum-verified k3d, the k8s manifests, and the GitHub Actions runner itself as a systemd service (survives reboots, no foreground terminal needed). Full step-by-step instructions — building the seed ISO, creating the VM, and running the bootstrap script — are in `CHEATSHEET.md`'s "Disposable Hyper-V deploy runner" section. The workflow never schedules pull-request jobs on it, and k3d pulls the public GHCR image directly by digest, so the runner account does not need Docker-socket access.
 
 ```bash
 cd app

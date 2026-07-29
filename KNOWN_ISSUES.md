@@ -25,17 +25,17 @@ A living list of things to remember and watch out for — distinct from `DECISIO
 
 ---
 
-## WSL keeps the VM alive but stops the distribution without a foreground process
+## WSL keeps the VM alive but stops the distribution without a foreground process (resolved — historical reference)
 
-**Status**: Open / mitigated lifecycle constraint.
+**Status**: Resolved by moving the deployment runner off WSL entirely.
 
 **Symptom**: Docker and the k3d containers appear healthy during one WSL command, then `docker.service` is explicitly stopped as soon as the final `wsl.exe` process exits. The WSL kernel boot ID remains unchanged, so this is not the whole WSL2 VM rebooting.
 
 **Root cause**: `vmIdleTimeout=-1` keeps the shared WSL2 virtual machine alive; it does not guarantee that an individual distribution remains active when no Windows-side WSL process is attached. Systemd services alone did not keep this Ubuntu distribution running in the observed setup.
 
-**Current mitigation**: run `bash scripts/start-local-runner.sh` in a dedicated WSL terminal. The foreground runner keeps the distribution active; the script first activates Docker and verifies k3d. Keep the terminal open during the demo and use `Ctrl+C` when the runner should go offline.
+**Former mitigation (WSL runner, decommissioned 2026-07-28)**: ran a foreground `scripts/start-local-runner.sh` in a dedicated WSL terminal to keep the distribution active; the script has since been deleted along with the rest of the WSL runner setup.
 
-**Revisit when**: unattended startup becomes a requirement. At that point, use a narrowly scoped Windows Task Scheduler entry that launches the foreground runner command, or move the runner to an always-on Linux VM.
+**Resolution**: the deployment runner moved to a disposable Hyper-V Ubuntu Server VM (`infra/hyperv-runner/`), where the GitHub Actions runner runs as a real systemd service and survives without any foreground terminal — exactly the "always-on Linux VM" option this issue's original "Revisit when" pointed at. Confirmed via a real `deploy-development` job round-tripping successfully on 2026-07-29 (see `DECISIONS.md`).
 
 ---
 
