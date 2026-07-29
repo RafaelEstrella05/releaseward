@@ -1,0 +1,84 @@
+#cloud-config
+# ---------------------------------------------------------------------------
+# releaseward agent-sandbox — Ubuntu Desktop autoinstall (Subiquity 24.04.1+)
+#
+# Reproducible, unattended install of an isolated Ubuntu Desktop box for
+# running Claude Code + Codex as agents. Desktop (not Server) is chosen on
+# purpose: both agents authenticate via a browser OAuth flow, which is far
+# easier with a local browser than over SSH on a headless box.
+#
+# BEFORE USING, change these:
+#   1. identity.password  -> replace the placeholder hash (see command below)
+#   2. timezone           -> if you're not on US Central
+#   3. (optional) ssh.authorized-keys -> for key-only login, then set allow-pw: false
+#
+# Generate a password hash on any Linux box:  openssl passwd -6
+# Never commit a real hash to a public repo.
+# ---------------------------------------------------------------------------
+autoinstall:
+  version: 1
+
+  # Keep rebuilds deterministic: don't let the installer self-update mid-run.
+  refresh-installer:
+    update: false
+
+  locale: en_US.UTF-8
+  keyboard:
+    layout: us
+  timezone: America/Chicago
+
+  # Whole-disk, no encryption — it's a disposable VM, snapshot instead.
+  # For at-rest protection swap for:
+  #   layout: {name: lvm, encrypted: true, password: "your-luks-passphrase"}
+  storage:
+    layout:
+      name: direct
+
+  # Lean sandbox: no proprietary drivers / third-party codecs.
+  drivers:
+    install: false
+
+  identity:
+    hostname: releaseward-sbx
+    realname: sandbox dev
+    username: dev
+    password: "$6$REPLACE_ME$replace.this.with.a.real.hash.from.openssl.passwd.-6"
+
+  ssh:
+    install-server: true
+    allow-pw: true
+    # For key-only access, uncomment and set allow-pw above to false:
+    # authorized-keys:
+    #   - ssh-ed25519 AAAA...your-key... you@host
+
+  packages:
+    - curl
+    - git
+    - ca-certificates
+    - build-essential
+    - python3
+    - python3-venv
+    - ripgrep        # Claude Code relies on ripgrep
+    - unzip
+    - ufw
+
+  # Standard cloud-init, applied on the installed system's FIRST BOOT
+  # (full network available). Tool installs belong here, not in the installer env.
+  user-data:
+    runcmd:
+      # --- host firewall: default-deny inbound, allow SSH, allow outbound ---
+      - ufw default deny incoming
+      - ufw default allow outgoing
+      - ufw allow OpenSSH
+      - ufw --force enable
+
+      # --- toolchain + agents, installed as the 'dev' user (never root) ---
+      - [ runuser, -l, dev, -c, "curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash" ]
+      - [ runuser, -l, dev, -c, "export NVM_DIR=$HOME/.nvm; . $NVM_DIR/nvm.sh; nvm install 22; npm install -g @anthropic-ai/claude-code @openai/codex" ]
+
+      # --- optional: Anthropic's reference devcontainer for run-inside-VM defense in depth ---
+      # - [ runuser, -l, dev, -c, "git clone --depth 1 https://github.com/anthropics/claude-code.git $HOME/claude-code-ref" ]
+
+  late-commands: []
+
+  shutdown: reboot

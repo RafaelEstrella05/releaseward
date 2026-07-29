@@ -1,0 +1,47 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git show*)",
+      "Bash(git branch)",
+      "Bash(git branch -a)",
+      "Bash(git branch -v)",
+      "Bash(git branch --show-current)",
+      "Bash(git branch --list*)",
+      "Bash(kubectl get*)",
+      "Bash(kubectl describe*)",
+      "Bash(kubectl logs*)",
+      "Bash(kubectl rollout status*)",
+      "Bash(kubectl auth can-i*)",
+      "Bash(kubectl version*)",
+      "Bash(docker images*)",
+      "Bash(docker image inspect*)",
+      "Bash(docker ps*)",
+      "Bash(npm ci*)",
+      "Bash(npm test*)",
+      "Bash(npm run lint*)",
+      "Bash(curl http://localhost*)",
+      "Bash(curl -s http://localhost*)",
+      "Bash(curl --silent http://localhost*)",
+      "Bash(trivy *)",
+      "Bash(find *)",
+      "Bash(wc *)"
+    ],
+    "deny": [
+      "Bash(git push*)",
+      "Bash(git commit*)",
+      "Bash(git reset*)",
+      "Bash(git branch -d*)",
+      "Bash(git branch -D*)",
+      "Bash(kubectl apply*)",
+      "Bash(kubectl delete*)",
+      "Bash(kubectl set*)",
+      "Bash(kubectl annotate*)",
+      "Bash(kubectl patch*)",
+      "Bash(docker push*)",
+      "Bash(rm -rf*)"
+    ]
+  }
+}
