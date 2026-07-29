@@ -1,0 +1,64 @@
+#cloud-config
+# Ubuntu Server 24.04 LTS (Noble) autoinstall (Subiquity) config for the
+# disposable deployment-only runner VM. Boot the official Ubuntu Server ISO
+# on Hyper-V with this file (plus meta-data) served from a NoCloud seed ISO
+# labeled CIDATA, appending `autoinstall` to the kernel command line.
+# See CHEATSHEET.md > "Disposable Hyper-V deploy runner" for the full
+# VM-creation and seed-ISO steps.
+#
+# Before use, replace the two REPLACE_ME placeholders below:
+#   - ssh.authorized-keys: paste your own SSH public key (password SSH is
+#     disabled entirely — key-only access).
+#   - identity.password: a hash from `openssl passwd -6`, used only for
+#     local console recovery and sudo, never for SSH.
+autoinstall:
+  version: 1
+  interactive-sections: []
+  locale: en_US.UTF-8
+  keyboard:
+    layout: us
+  timezone: Etc/UTC
+  refresh-installer:
+    update: false
+  network:
+    version: 2
+    ethernets:
+      all-nics:
+        match:
+          name: "en*"
+        dhcp4: true
+  storage:
+    layout:
+      name: lvm
+  ssh:
+    install-server: true
+    allow-pw: false
+    authorized-keys:
+      - "REPLACE_ME_WITH_YOUR_SSH_PUBLIC_KEY"
+  identity:
+    hostname: releaseward-runner
+    username: opsadmin
+    password: "REPLACE_ME_WITH_openssl_passwd_-6_HASH"
+  packages:
+    - docker.io
+    - curl
+    - ca-certificates
+    - unattended-upgrades
+  late-commands:
+    # Dedicated deployment account, created but deliberately left out of the
+    # `docker` group — mirrors the existing WSL runner's trust boundary
+    # (deploy-only, no Docker/Service/Ingress authority). Locked, no direct
+    # login: the admin account (opsadmin) sudos into it to run the runner.
+    - curtin in-target --target=/target -- useradd --create-home --shell /bin/bash releasewardrunner
+    - curtin in-target --target=/target -- passwd --lock releasewardrunner
+    # opsadmin manages Docker/k3d directly.
+    - curtin in-target --target=/target -- usermod -aG docker opsadmin
+    - |
+      curtin in-target --target=/target -- sh -c '
+      cat > /etc/motd <<EOF
+
+      This is a disposable, autoinstall-provisioned releaseward deploy runner.
+      Rebuild it from infra/hyperv-runner/ rather than hand-patching drift.
+      Next step after first login: infra/hyperv-runner/bootstrap-post-install.sh
+      EOF
+      '

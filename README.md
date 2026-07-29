@@ -105,6 +105,7 @@ See `CHEATSHEET.md` for the full set of WSL/Docker/k3d/kubectl commands to poke 
 ## Project layout
 
 - `app/` — the Node + Express demo service (health endpoints, structured logging, the security-event classify feature, intentional Trivy fixtures)
+- `infra/hyperv-codebot/autoinstall.yaml` — provisions the isolated Hyper-V VM the AI coding agent runs on for the `ai-test/**` lane, kept separate from the developer's own machine so an autonomous agent's blast radius is contained (see TASKS.md's "AI-writable candidate branch" task)
 - `k8s/` — the development namespace, namespace-scoped runner RBAC, and application manifests
 - `.github/workflows/ci.yml` — hosted CI/security/build/publish jobs plus the trusted development deployment job
 - `scripts/` — limited runner-kubeconfig bootstrap and foreground runner startup helpers

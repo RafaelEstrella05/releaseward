@@ -1,0 +1,78 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-releaseward
+  namespace: releaseward-dev
+  labels:
+    releaseward.dev/component: observability
+data:
+  releaseward.json: |
+    {
+      "id": null,
+      "uid": "releaseward-demo",
+      "title": "releaseward demo service",
+      "schemaVersion": 39,
+      "version": 1,
+      "timezone": "browser",
+      "time": { "from": "now-1h", "to": "now" },
+      "refresh": "10s",
+      "panels": [
+        {
+          "id": 1,
+          "type": "timeseries",
+          "title": "Request rate by route",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "releaseward-prometheus" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum(rate(http_request_duration_seconds_count[5m])) by (route)",
+              "legendFormat": "{{route}}"
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "type": "timeseries",
+          "title": "Error rate (5xx) by route",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "releaseward-prometheus" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum(rate(http_request_duration_seconds_count{status_code=~\"5..\"}[5m])) by (route)",
+              "legendFormat": "{{route}}"
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "type": "timeseries",
+          "title": "p95 latency by route",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+          "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+          "datasource": { "type": "prometheus", "uid": "releaseward-prometheus" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, route))",
+              "legendFormat": "{{route}}"
+            }
+          ]
+        },
+        {
+          "id": 4,
+          "type": "timeseries",
+          "title": "Classified security events by category (5m rate)",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+          "datasource": { "type": "prometheus", "uid": "releaseward-prometheus" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum(rate(releaseward_classify_events_total[5m])) by (category)",
+              "legendFormat": "{{category}}"
+            }
+          ]
+        }
+      ]
+    }
