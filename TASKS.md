@@ -88,12 +88,10 @@
 
   **Paused 2026-07-28** given a short remaining prep window: the remaining work here (branch-ruleset restriction scoped to the bot identity, a second ephemeral-image workflow, a `releaseward-test` namespace) is multi-day infra work with lower marginal payoff right now than closing the observability gap and deepening the AI-driven-pipeline-ops story below. Resuming this is still the right next infra task afterward if time allows.
 
-### [ ] Task: Production observability — metrics and dashboard
+### [x] Task: Production observability — metrics and dashboard
 - **Purpose**: Structured JSON logs prove a request happened; they don't surface a regression or anomaly on their own. Add real metrics (request rate, error rate, latency) from the demo service and a dashboard so a problem is visible without reading raw logs — closing the gap `ARCHITECTURE.md` had deferred as a "later increment." Treated as required, not optional.
-- **Status**: in-progress
-- **Notes**: App-side instrumentation is done and verified for real (`prom-client`, `/metrics` endpoint, request-duration histogram, classify-by-category counter — confirmed via clean `npm ci`, lint, all 7 unit tests, and live `curl` checks against a running server, including 400/404 status-code label paths). `k8s/observability/` manifests for Prometheus + Grafana (plus a starter 4-panel dashboard) are written and YAML/JSON-validated, using confirmed-to-exist image tags.
-
-  **Remaining before this can be marked done**: this sandbox environment has no Docker/kubectl/k3d (by design — see DECISIONS.md), so the manifests have not been `kubectl apply`'d or checked against a live cluster. Someone with access to the k3d machine (now the Hyper-V deploy runner, `infra/hyperv-runner/` — WSL is decommissioned, see the "Replace WSL deploy runner..." task above) needs to apply `k8s/observability/*.yaml` into `releaseward-dev`, confirm Prometheus shows the scrape target up, and confirm the Grafana dashboard (anonymous Viewer access, no login needed) renders real data — then update this note and DECISIONS.md's open follow-up.
+- **Status**: done
+- **Notes**: App-side instrumentation and the `k8s/observability/` manifests were built and validated in the earlier session (see the 2026-07-28 09:45 DECISIONS.md entry). Closed out 2026-07-29 with a real `kubectl apply` against the live k3d cluster on the Hyper-V deploy runner and browser-verified results — see the 2026-07-29 19:51 DECISIONS.md entry for the full record, including a doc gap found along the way (`CHEATSHEET.md` never got an observability section).
 
 ### [ ] Task: Claude Code Action release-summary stage
 - **Purpose**: The AI-driven pipeline differentiator — Claude reads the completed run (logs, diff, commits) and posts a plain-English release summary as a PR/commit comment.

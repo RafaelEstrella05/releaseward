@@ -332,6 +332,43 @@ Only needed for infrastructure-level debugging — e.g. inspecting the node's ow
 docker exec -it k3d-releaseward-server-0 sh   # shell into the NODE container itself
 ```
 
+## Observability (Prometheus + Grafana)
+
+Both live in `k8s/observability/` and deploy into the existing `releaseward-dev` namespace. Confirmed working end-to-end on the Hyper-V deploy runner's k3d cluster on 2026-07-29 (see `DECISIONS.md`) — not yet part of the automated deploy pipeline, so apply it by hand:
+
+```bash
+kubectl apply -f k8s/observability/
+kubectl get pods -n releaseward-dev -l releaseward.dev/component=observability
+```
+
+Both `prometheus-...` and `grafana-...` pods should reach `1/1 Running` within a few seconds.
+
+### Reaching them from Windows, through the Hyper-V runner's SSH-only firewall
+
+`infra/hyperv-runner/bootstrap-post-install.sh` locks `ufw` down to SSH only, so a `kubectl port-forward` on the VM isn't reachable at the VM's IP directly — tunnel through the SSH connection you already have instead of opening a port.
+
+On the VM (`ssh opsadmin@<vm-ip>`), background both port-forwards in one shell so you get your prompt back:
+
+```bash
+kubectl port-forward -n releaseward-dev svc/prometheus 9090:9090 > /tmp/pf-prometheus.log 2>&1 &
+kubectl port-forward -n releaseward-dev svc/grafana 3000:3000 > /tmp/pf-grafana.log 2>&1 &
+jobs                     # confirm both are running
+# kill %1 / kill %2      # stop one without killing the other
+```
+
+Then tunnel both local ports from Windows to the VM over SSH. OpenSSH:
+
+```
+ssh -L 9090:localhost:9090 -L 3000:localhost:3000 opsadmin@<vm-ip>
+```
+
+PuTTY: **Connection -> SSH -> Tunnels**, add Source port `9090` -> Destination `localhost:9090`, then Source port `3000` -> Destination `localhost:3000` (both **Local**, click **Add** after each) before connecting — or add them to an already-open session live via right-click the title bar -> **Change Settings...** -> same Tunnels page -> **Apply** (no reconnect needed).
+
+### What to check
+
+- Prometheus: `http://localhost:9090/targets` — the `releaseward-demo` job should show `1/1 up`, scraping every ~5s.
+- Grafana: `http://localhost:3000` — anonymous Viewer access, no login prompt. The starter dashboard isn't on the default Home page — go to **Dashboards -> releaseward demo service** for the 4 panels (request rate, 5xx error rate, p95 latency, classify events by category). The first three populate from the `/livez`/`/readyz` probes and `/metrics` scrapes alone; the classify panel stays at "No data" until something actually calls `/classify` (see "Actually hitting the app" above).
+
 ## Recreating the cluster from scratch
 
 If the cluster ever needs a clean rebuild (and both WSL2 environment fixes in the README's Setup section are already applied):
