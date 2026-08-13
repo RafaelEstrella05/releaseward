@@ -77,6 +77,8 @@
 
   **Update 2026-07-29 20:22**: closed out after a live debugging session found the runner from the update above was actually crash-looping (not really online) and fixed several real bugs — two in `bootstrap-post-install.sh` itself, plus a wrong-user `svc.sh install` and a skipped kubeconfig step. Confirmed via workflow run `30473735741`: `lint-and-test`, `filesystem-security`, `image-build`, and `deploy-development` all green, with `deploy-development` actually executing on `releaseward-hyperv-deploy`. Full root-cause account in `DECISIONS.md`'s 2026-07-29 20:22 entry — not repeated here.
 
+  **Update 2026-08-13**: `deploy-development` failed on a `master` push after 14 days of no pushes — the `releasewardrunner` kubeconfig's 7-day TTL had expired. Fixed by re-running `scripts/bootstrap-runner-kubeconfig.sh`; confirmed via a clean re-run of the failed job. Full incident writeup in `AI_DETECTION_SCENARIOS.md` Scenario 001. Surfaced an open question (queued as a new task below) rather than folded in here: what to do about the TTL recurring on any 7+ day gap between pushes.
+
 ### [ ] Task: AI-writable candidate branch + ephemeral test image lane
 - **Purpose**: Let a bounded coding agent iterate autonomously without confusing an AI-produced candidate with a trusted release artifact. The agent may push only to `ai-test/**`; hosted CI publishes an immutable candidate image for automatic testing in k3d, while human review and trusted promotion remain mandatory before staging or production eligibility.
 - **Status**: in-progress (paused — see note)
@@ -107,6 +109,11 @@
 
 ### [ ] Task: README polish
 - **Purpose**: Final legibility pass — a stranger should be able to run the whole thing locally in under 15 minutes from the README alone.
+- **Status**: todo
+- **Notes**:
+
+### [ ] Task: Decide handling for the self-hosted runner's 7-day kubeconfig TTL
+- **Purpose**: The `releasewardrunner` deploy kubeconfig expires after 7 days by design (a deliberate credential-lifetime boundary, not a bug). On 2026-08-13, a 14-day gap between `master` pushes let it expire and failed a real deploy, requiring a manual re-run of `scripts/bootstrap-runner-kubeconfig.sh` to fix (see `AI_DETECTION_SCENARIOS.md` Scenario 001). Decide whether to accept this as a known low-frequency manual step, add a scheduled renewal job, or lengthen the TTL — the last option trades away some of the credential-lifetime hardening Trivy originally flagged as HIGH risk, so it needs a deliberate decision, not a default.
 - **Status**: todo
 - **Notes**:
 
