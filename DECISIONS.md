@@ -275,3 +275,11 @@ Verified through the firewall via SSH local port-forwarding (PuTTY tunnels, sinc
 **Why**: This is the real end-to-end proof the 2026-07-28 09:45 entry's "partially verified" status was waiting on — manifests parsing as valid YAML is not the same claim as metrics flowing through a live scrape into a rendered dashboard, and now both are demonstrated on the actual cluster rather than asserted.
 
 **Status**: Active. `TASKS.md`'s "Production observability" task is now marked done. `CHEATSHEET.md` has since gained an "Observability (Prometheus + Grafana)" section covering the apply command and the SSH-tunnel/PuTTY port-forward procedure — no open follow-up remains from this entry.
+
+### [2026-08-13 15:15] Ruleset restricts `releaseward-ai-bot` to `ai-test/**`
+
+**Decision**: New ruleset `Restrict AI bot to ai-test` (id `20815808`): targets all branches except `ai-test/**`, requires a PR to push/merge, bypassed only by `Repository admin`. The bot (`write` permission, no bypass) can now push directly only to `ai-test/**`.
+
+**Why**: Closes the "agent may push only to `ai-test/**`" gap in the paused task — nothing enforced this before.
+
+**Status**: Active, config-verified via API, not live push-tested (this sandbox hard-denies `git push`/`git commit` regardless of chat approval; bot lacks admin to create/verify bypass details itself — both by design). Remaining sub-pieces: `releaseward-test` namespace, ephemeral test-image workflow.
