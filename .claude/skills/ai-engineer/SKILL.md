@@ -101,3 +101,7 @@ broad its read/analysis scope is.
 - `AI_AUTOMATION.md` — full autonomy/authority argument and intended-use list.
 - `AI_FIRST_CICD.md` — full future-state architecture (proposed, not implemented).
 - `ARCHITECTURE.md` / `TASKS.md` — current source of truth for what's actually built.
+- `AI_DETECTION_SCENARIOS.md` — real incidents captured live (trigger, signals,
+  attributed actions, root cause, target summary) as raw material for the
+  release-summary task's eventual `evals/` cases. Add an entry whenever a real
+  debugging session happens, not just when the task itself is being built.
