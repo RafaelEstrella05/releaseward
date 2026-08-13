@@ -88,6 +88,8 @@
 
   **Paused 2026-07-28** given a short remaining prep window: the remaining work here (branch-ruleset restriction scoped to the bot identity, a second ephemeral-image workflow, a `releaseward-test` namespace) is multi-day infra work with lower marginal payoff right now than closing the observability gap and deepening the AI-driven-pipeline-ops story below. Resuming this is still the right next infra task afterward if time allows.
 
+  **Resumed 2026-08-13**: branch-ruleset restriction done — see `DECISIONS.md` 2026-08-13 15:15 entry. Remaining: `releaseward-test` namespace, ephemeral test-image workflow.
+
 ### [x] Task: Production observability — metrics and dashboard
 - **Purpose**: Structured JSON logs prove a request happened; they don't surface a regression or anomaly on their own. Add real metrics (request rate, error rate, latency) from the demo service and a dashboard so a problem is visible without reading raw logs — closing the gap `ARCHITECTURE.md` had deferred as a "later increment." Treated as required, not optional.
 - **Status**: done
